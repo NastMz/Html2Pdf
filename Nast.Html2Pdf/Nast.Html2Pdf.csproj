@@ -5,6 +5,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PreserveCompilationContext>true</PreserveCompilationContext>
+    
+    <!-- NuGet Package Information -->
+    <PackageId>Nast.Html2Pdf</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Kevin Martinez</Authors>
+    <Company>Nast</Company>
+    <Product>Nast.Html2Pdf</Product>
+    <Description>A .NET library for converting HTML to PDF using RazorLight for template generation and Playwright for PDF conversion. Features include dynamic template support, browser pool optimization, flexible configuration, and complete dependency injection integration.</Description>
+    <PackageTags>html;pdf;converter;razor;playwright;template;generation;browser;pool;dependency-injection</PackageTags>
+    <PackageProjectUrl>https://github.com/NastMz/Html2Pdf</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/NastMz/Html2Pdf</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2025 Kevin Martinez</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Build Configuration -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +35,11 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.7" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
