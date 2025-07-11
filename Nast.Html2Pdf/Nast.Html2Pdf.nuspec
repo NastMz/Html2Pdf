@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Nast.Html2Pdf</id>
+    <version>1.0.0</version>
+    <title>Nast.Html2Pdf</title>
+    <authors>Kevin Martinez</authors>
+    <owners>Kevin Martinez</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/NastMz/Html2Pdf</projectUrl>
+    <description>A .NET library for converting HTML to PDF using RazorLight for template generation and Playwright for PDF conversion. Features include dynamic template support, browser pool optimization, flexible configuration, and complete dependency injection integration.</description>
+    <summary>HTML to PDF conversion library with RazorLight templates and Playwright</summary>
+    <copyright>Copyright (c) 2025 Kevin Martinez</copyright>
+    <tags>html pdf converter razor playwright template generation browser pool dependency-injection</tags>
+    <repository type="git" url="https://github.com/NastMz/Html2Pdf" />
+    <dependencies>
+      <group targetFramework="net8.0">
+        <dependency id="RazorLight" version="2.3.1" />
+        <dependency id="Microsoft.Playwright" version="1.53.0" />
+        <dependency id="Microsoft.Extensions.DependencyInjection" version="9.0.7" />
+        <dependency id="Microsoft.Extensions.Options" version="9.0.7" />
+        <dependency id="Microsoft.Extensions.Logging" version="9.0.7" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\net8.0\Nast.Html2Pdf.dll" target="lib\net8.0" />
+    <file src="bin\Release\net8.0\Nast.Html2Pdf.pdb" target="lib\net8.0" />
+    <file src="bin\Release\net8.0\Nast.Html2Pdf.xml" target="lib\net8.0" />
+    <file src="..\README.md" target="" />
+    <file src="..\LICENSE" target="" />
+  </files>
+</package>
