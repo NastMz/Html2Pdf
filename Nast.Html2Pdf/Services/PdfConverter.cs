@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
-using System.Diagnostics;
-using Nast.Html2Pdf.Interfaces;
+using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Models;
-using Nast.Html2Pdf.Exceptions;
+using System.Diagnostics;
 
 namespace Nast.Html2Pdf.Services
 {
@@ -31,7 +30,7 @@ namespace Nast.Html2Pdf.Services
                 _logger.LogDebug("Starting PDF conversion from HTML");
 
                 using var page = await _browserPool.GetPageAsync();
-                
+
                 // Configure the page
                 await ConfigurePageAsync(page.Page, options);
 
@@ -52,7 +51,7 @@ namespace Nast.Html2Pdf.Services
                 var pdfData = await GeneratePdfAsync(page.Page, options);
 
                 stopwatch.Stop();
-                _logger.LogDebug("PDF conversion completed in {Duration}ms, size: {Size} bytes", 
+                _logger.LogDebug("PDF conversion completed in {Duration}ms, size: {Size} bytes",
                     stopwatch.ElapsedMilliseconds, pdfData.Length);
 
                 return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
@@ -75,7 +74,7 @@ namespace Nast.Html2Pdf.Services
                 _logger.LogDebug("Starting PDF conversion from URL: {Url}", url);
 
                 using var page = await _browserPool.GetPageAsync();
-                
+
                 // Configure the page
                 await ConfigurePageAsync(page.Page, options);
 
@@ -96,7 +95,7 @@ namespace Nast.Html2Pdf.Services
                 var pdfData = await GeneratePdfAsync(page.Page, options);
 
                 stopwatch.Stop();
-                _logger.LogDebug("PDF conversion from URL completed in {Duration}ms, size: {Size} bytes", 
+                _logger.LogDebug("PDF conversion from URL completed in {Duration}ms, size: {Size} bytes",
                     stopwatch.ElapsedMilliseconds, pdfData.Length);
 
                 return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
@@ -193,7 +192,7 @@ namespace Nast.Html2Pdf.Services
                 // Si hay datos, usar RazorLight para procesar la plantilla
                 var htmlGenerator = new HtmlGenerator(new Microsoft.Extensions.Logging.Abstractions.NullLogger<HtmlGenerator>());
                 var result = await htmlGenerator.GenerateAsync(headerFooter.Template, headerFooter.Data);
-                
+
                 if (result.Success)
                 {
                     return result.Html ?? headerFooter.Template;

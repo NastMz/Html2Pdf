@@ -9,11 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="RazorLight" Version="2.3.1" />
-    <PackageReference Include="Microsoft.Playwright" Version="1.44.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.0.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.53.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
   </ItemGroup>
 
 </Project>

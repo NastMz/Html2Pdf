@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Extensions;
-using Nast.Html2Pdf.Helpers;
-using Nast.Html2Pdf.Interfaces;
 using Nast.Html2Pdf.Services;
 
 namespace Nast.Html2Pdf
@@ -18,7 +17,7 @@ namespace Nast.Html2Pdf
         public static IHtml2PdfService Create(BrowserPoolOptions? browserPoolOptions = null)
         {
             var services = new ServiceCollection();
-            
+
             // Configure basic logging
             services.AddLogging(builder => builder.AddConsole());
 

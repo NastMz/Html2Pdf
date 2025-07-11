@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
+using Nast.Html2Pdf.Abstractions;
+using Nast.Html2Pdf.Exceptions;
+using Nast.Html2Pdf.Models;
 using RazorLight;
 using System.Diagnostics;
 using System.Text;
-using Nast.Html2Pdf.Interfaces;
-using Nast.Html2Pdf.Models;
-using Nast.Html2Pdf.Exceptions;
 
 namespace Nast.Html2Pdf.Services
 {
@@ -36,7 +36,7 @@ namespace Nast.Html2Pdf.Services
 
                 // Generate base HTML
                 var html = await _razorEngine.CompileRenderStringAsync(Guid.NewGuid().ToString(), template, model);
-                
+
                 // Process HTML according to options
                 var processedHtml = ProcessHtml(html, options);
 
@@ -74,7 +74,7 @@ namespace Nast.Html2Pdf.Services
                 }
 
                 var html = await _razorEngine.CompileRenderAsync(templatePath, model);
-                
+
                 // Process HTML according to options
                 var processedHtml = ProcessHtml(html, options);
 
@@ -101,7 +101,7 @@ namespace Nast.Html2Pdf.Services
                 _logger.LogDebug("Starting HTML generation from resource: {ResourceKey}", resourceKey);
 
                 var html = await _razorEngine.CompileRenderAsync(resourceKey, model);
-                
+
                 // Procesar el HTML según las opciones
                 var processedHtml = ProcessHtml(html, options);
 
@@ -141,12 +141,12 @@ namespace Nast.Html2Pdf.Services
         private static string CreateCompleteHtmlDocument(string html, HtmlGenerationOptions options)
         {
             var htmlBuilder = new StringBuilder();
-            
+
             htmlBuilder.AppendLine("<!DOCTYPE html>");
             htmlBuilder.AppendLine("<html>");
             htmlBuilder.AppendLine("<head>");
             htmlBuilder.AppendLine($"<meta charset=\"{options.Encoding}\">");
-            
+
             if (options.IncludeViewport)
             {
                 htmlBuilder.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
@@ -174,7 +174,7 @@ namespace Nast.Html2Pdf.Services
             }
 
             htmlBuilder.AppendLine("</html>");
-            
+
             return htmlBuilder.ToString();
         }
 
@@ -186,7 +186,7 @@ namespace Nast.Html2Pdf.Services
             }
 
             var htmlContent = html;
-            
+
             // Agregar CSS adicional antes del cierre de </head>
             if (!string.IsNullOrEmpty(options.AdditionalCss))
             {

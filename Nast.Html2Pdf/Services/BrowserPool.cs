@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
+using Nast.Html2Pdf.Abstractions;
+using Nast.Html2Pdf.Exceptions;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Nast.Html2Pdf.Interfaces;
-using Nast.Html2Pdf.Exceptions;
 
 namespace Nast.Html2Pdf.Services
 {
@@ -112,7 +112,7 @@ namespace Nast.Html2Pdf.Services
             _availablePages = new ConcurrentQueue<PooledPage>();
             _allPages = new ConcurrentDictionary<string, PooledPage>();
             _semaphore = new SemaphoreSlim(_options.MaxInstances, _options.MaxInstances);
-            
+
             // Timer for periodic cleanup
             _cleanupTimer = new Timer(CleanupExpiredPages, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
@@ -152,7 +152,7 @@ namespace Nast.Html2Pdf.Services
                 // Create new page
                 var page = await CreateNewPageAsync();
                 page.MarkAsInUse();
-                
+
                 _logger.LogDebug("Created new browser page in {Duration}ms", stopwatch.ElapsedMilliseconds);
                 return page;
             }
@@ -203,7 +203,7 @@ namespace Nast.Html2Pdf.Services
 
             var page = await _browser!.NewPageAsync();
             var pooledPage = new PooledPage(page, this);
-            
+
             _allPages.TryAdd(pooledPage.Page.Url, pooledPage);
             return pooledPage;
         }
@@ -213,7 +213,7 @@ namespace Nast.Html2Pdf.Services
             _logger.LogDebug("Initializing browser");
 
             var playwright = await Playwright.CreateAsync();
-            
+
             var launchOptions = new BrowserTypeLaunchOptions
             {
                 Headless = _options.Headless,
@@ -221,7 +221,7 @@ namespace Nast.Html2Pdf.Services
             };
 
             _browser = await playwright.Chromium.LaunchAsync(launchOptions);
-            
+
             _logger.LogDebug("Browser initialized successfully");
         }
 
@@ -246,7 +246,7 @@ namespace Nast.Html2Pdf.Services
                 {
                     await page.Page.CloseAsync();
                 }
-                
+
                 _allPages.TryRemove(page.Page.Url, out _);
                 _logger.LogDebug("Closed expired browser page");
             }

@@ -1,8 +1,7 @@
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using Nast.Html2Pdf.Interfaces;
+using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Models;
-using Nast.Html2Pdf.Exceptions;
+using System.Diagnostics;
 
 namespace Nast.Html2Pdf.Services
 {
@@ -25,11 +24,11 @@ namespace Nast.Html2Pdf.Services
             _logger = logger;
         }
 
-        public async Task<PdfResult> GeneratePdfAsync(string template, object? model = null, 
+        public async Task<PdfResult> GeneratePdfAsync(string template, object? model = null,
             PdfOptions? pdfOptions = null, HtmlGenerationOptions? htmlOptions = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogDebug("Starting PDF generation from template");
@@ -39,7 +38,7 @@ namespace Nast.Html2Pdf.Services
                 if (!htmlResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"HTML generation failed: {htmlResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"HTML generation failed: {htmlResult.ErrorMessage}",
                         htmlResult.Exception, stopwatch.Elapsed);
                 }
 
@@ -48,7 +47,7 @@ namespace Nast.Html2Pdf.Services
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}",
                         pdfResult.Exception, stopwatch.Elapsed);
                 }
 
@@ -65,11 +64,11 @@ namespace Nast.Html2Pdf.Services
             }
         }
 
-        public async Task<PdfResult> GeneratePdfFromFileAsync(string templatePath, object? model = null, 
+        public async Task<PdfResult> GeneratePdfFromFileAsync(string templatePath, object? model = null,
             PdfOptions? pdfOptions = null, HtmlGenerationOptions? htmlOptions = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogDebug("Starting PDF generation from file: {TemplatePath}", templatePath);
@@ -79,7 +78,7 @@ namespace Nast.Html2Pdf.Services
                 if (!htmlResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"HTML generation failed: {htmlResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"HTML generation failed: {htmlResult.ErrorMessage}",
                         htmlResult.Exception, stopwatch.Elapsed);
                 }
 
@@ -88,7 +87,7 @@ namespace Nast.Html2Pdf.Services
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}",
                         pdfResult.Exception, stopwatch.Elapsed);
                 }
 
@@ -108,7 +107,7 @@ namespace Nast.Html2Pdf.Services
         public async Task<PdfResult> GeneratePdfFromHtmlAsync(string html, PdfOptions? pdfOptions = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogDebug("Starting PDF generation from HTML");
@@ -118,7 +117,7 @@ namespace Nast.Html2Pdf.Services
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}",
                         pdfResult.Exception, stopwatch.Elapsed);
                 }
 
@@ -138,7 +137,7 @@ namespace Nast.Html2Pdf.Services
         public async Task<PdfResult> GeneratePdfFromUrlAsync(string url, PdfOptions? pdfOptions = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogDebug("Starting PDF generation from URL: {Url}", url);
@@ -148,7 +147,7 @@ namespace Nast.Html2Pdf.Services
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
-                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}", 
+                    return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}",
                         pdfResult.Exception, stopwatch.Elapsed);
                 }
 
