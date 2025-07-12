@@ -38,6 +38,7 @@ namespace Nast.Html2Pdf.Extensions
 
             services.AddScoped<IHtmlGenerator, HtmlGenerator>();
             services.AddScoped<IPdfConverter, PdfConverter>();
+            services.AddScoped<Html2PdfDiagnostics>();
             services.AddScoped<IHtml2PdfService, Html2PdfService>();
 
             return services;
@@ -65,6 +66,7 @@ namespace Nast.Html2Pdf.Extensions
             // Register other services with specified lifetime
             services.Add(new ServiceDescriptor(typeof(IHtmlGenerator), typeof(HtmlGenerator), serviceLifetime));
             services.Add(new ServiceDescriptor(typeof(IPdfConverter), typeof(PdfConverter), serviceLifetime));
+            services.Add(new ServiceDescriptor(typeof(Html2PdfDiagnostics), typeof(Html2PdfDiagnostics), serviceLifetime));
             services.Add(new ServiceDescriptor(typeof(IHtml2PdfService), typeof(Html2PdfService), serviceLifetime));
 
             return services;

@@ -7,6 +7,7 @@ namespace Nast.Html2Pdf.Tests.Services
         private readonly Mock<IHtmlGenerator> _htmlGeneratorMock;
         private readonly Mock<IPdfConverter> _pdfConverterMock;
         private readonly Mock<ILogger<Html2PdfService>> _loggerMock;
+        private readonly Mock<Html2PdfDiagnostics> _diagnosticsMock;
         private readonly Html2PdfService _service;
 
         public Html2PdfServiceTests()
@@ -14,11 +15,13 @@ namespace Nast.Html2Pdf.Tests.Services
             _htmlGeneratorMock = new Mock<IHtmlGenerator>();
             _pdfConverterMock = new Mock<IPdfConverter>();
             _loggerMock = new Mock<ILogger<Html2PdfService>>();
+            _diagnosticsMock = new Mock<Html2PdfDiagnostics>(Mock.Of<ILogger<Html2PdfDiagnostics>>());
             
             _service = new Html2PdfService(
                 _htmlGeneratorMock.Object,
                 _pdfConverterMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _diagnosticsMock.Object);
         }
 
         [Fact]

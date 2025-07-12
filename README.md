@@ -1,17 +1,20 @@
 # Nast.Html2Pdf
 
-A .NET library for converting HTML to PDF using RazorLight for template generation and Playwright for PDF conversion.
+A .NET library for converting HTML to PDF using RazorLight for template generation and PuppeteerSharp for PDF conversion.
 
 ## Features
 
 - ✅ **HTML Generation**: Dynamic template support with RazorLight
-- ✅ **PDF Conversion**: Using Playwright for high-quality conversion
+- ✅ **PDF Conversion**: Using PuppeteerSharp for high-quality conversion
 - ✅ **Browser Pool**: Performance optimization with instance reuse
 - ✅ **Flexible Configuration**: Customization of sizes, margins, orientation
 - ✅ **Headers & Footers**: Support for content in headers and footers
 - ✅ **Error Handling**: Complete error management with detailed information
 - ✅ **External Resources**: Support for fonts, images, and CSS styles
 - ✅ **Dependency Injection**: Complete integration with .NET DI
+- ✅ **Functional Testing**: Real-world document scenarios (invoices, reports, letters)
+- ✅ **Logging & Diagnostics**: Comprehensive performance monitoring and bottleneck detection
+- ✅ **Comprehensive Documentation**: Complete user guide and API reference
 
 ## Installation
 
@@ -19,39 +22,204 @@ A .NET library for converting HTML to PDF using RazorLight for template generati
 dotnet add package Nast.Html2Pdf
 ```
 
-## Basic Usage
-
-### Simple Usage (Without DI)
+## Quick Start
 
 ```csharp
-using Nast.Html2Pdf;
-using Nast.Html2Pdf.Helpers;
+using Microsoft.Extensions.DependencyInjection;
+using Nast.Html2Pdf.Extensions;
 
-// Create the service
-var html2PdfService = Html2PdfFactory.CreateDefault();
+// Configure services
+var services = new ServiceCollection();
+services.AddLogging();
+services.AddHtml2Pdf();
+
+var serviceProvider = services.BuildServiceProvider();
+var pdfService = serviceProvider.GetRequiredService<IHtml2PdfService>();
 
 // Generate PDF from HTML
-var htmlTemplate = @"
-    <html>
-    <body>
-        <h1>Hello @Model.Name</h1>
-        <p>Date: @DateTime.Now.ToString(""dd/MM/yyyy"")</p>
-    </body>
-    </html>";
+var html = @"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sample Document</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>Sample Document</h1>
+    </div>
+    <p>This is a sample PDF document.</p>
+</body>
+</html>";
 
-var model = new { Name = "John Doe" };
-var result = await html2PdfService.GeneratePdfAsync(htmlTemplate, model);
+var result = await pdfService.GeneratePdfFromHtmlAsync(html);
 
 if (result.Success)
 {
-    File.WriteAllBytes("output.pdf", result.Data);
-    Console.WriteLine($"PDF generated successfully. Size: {result.Size} bytes");
-}
-else
-{
-    Console.WriteLine($"Error: {result.ErrorMessage}");
+    await File.WriteAllBytesAsync("document.pdf", result.Data);
+    Console.WriteLine($"PDF generated successfully in {result.Duration.TotalMilliseconds}ms");
 }
 ```
+
+## Documentation
+
+- **[Quick Start Guide](QUICK_START.md)** - Get up and running quickly
+- **[Comprehensive Guide](COMPREHENSIVE_GUIDE.md)** - Complete documentation with examples
+- **[API Reference](COMPREHENSIVE_GUIDE.md#api-reference)** - Detailed API documentation
+
+## Real-World Examples
+
+### Invoice Generation
+
+```csharp
+var invoiceTemplate = @"
+<html>
+<body>
+    <h1>Invoice #{{InvoiceNumber}}</h1>
+    <p>Customer: {{CustomerName}}</p>
+    <p>Date: {{Date:yyyy-MM-dd}}</p>
+    <table>
+        <tr><th>Item</th><th>Price</th></tr>
+        {{#each Items}}
+        <tr><td>{{Name}}</td><td>${{Price:F2}}</td></tr>
+        {{/each}}
+    </table>
+    <p><strong>Total: ${{Total:F2}}</strong></p>
+</body>
+</html>";
+
+var invoiceData = new
+{
+    InvoiceNumber = "INV-001",
+    CustomerName = "John Doe",
+    Date = DateTime.Now,
+    Items = new[] { /* ... */ },
+    Total = 150.00m
+};
+
+var result = await pdfService.GeneratePdfAsync(invoiceTemplate, invoiceData);
+```
+
+### Report Generation
+
+```csharp
+var reportTemplate = @"
+<html>
+<head>
+    <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+</head>
+<body>
+    <h1>Monthly Report</h1>
+    <div id='chart'></div>
+    <script>
+        // Chart.js code here
+    </script>
+</body>
+</html>";
+
+var result = await pdfService.GeneratePdfAsync(reportTemplate, reportData);
+```
+
+## Performance & Diagnostics
+
+The library includes built-in performance monitoring and diagnostics:
+
+```csharp
+// Enhanced logging shows detailed timing information
+[INFO] PDF Generation Started: Template | Operation ID: abc123
+[INFO] Template Processing: abc123 | Type: Razor | Duration: 45ms
+[INFO] HTML Generation Completed: abc123 | Duration: 67ms | HTML Length: 2048 chars
+[INFO] PDF Conversion Completed: abc123 | Duration: 890ms | PDF Size: 156723 bytes
+[INFO] Resource Usage: abc123 | Memory: 45 MB | Duration: 1002ms
+[INFO] PDF Generation Completed: Template | Operation ID: abc123 | Duration: 1002ms
+```
+
+## Configuration
+
+### Browser Pool
+
+```csharp
+services.AddHtml2Pdf(options =>
+{
+    options.MinInstances = 1;        // Minimum browser instances
+    options.MaxInstances = 5;        // Maximum browser instances
+    options.MaxUsageCount = 100;     // Recycle after 100 uses
+    options.TimeoutMs = 30000;       // 30 second timeout
+});
+```
+
+### PDF Options
+
+```csharp
+var pdfOptions = new PdfOptions
+{
+    Format = "A4",
+    PrintBackground = true,
+    Margins = new PdfMargins
+    {
+        Top = "1cm",
+        Bottom = "1cm",
+        Left = "1cm",
+        Right = "1cm"
+    },
+    Header = new PdfHeaderFooter
+    {
+        Template = "<div>Header Content</div>",
+        Height = "1cm"
+    }
+};
+```
+
+## Testing
+
+The library includes comprehensive functional tests for real-world scenarios:
+
+```bash
+dotnet test
+```
+
+Run specific functional tests:
+
+```bash
+dotnet test --filter "RealWorldScenariosTests"
+```
+
+## Requirements
+
+- .NET 8.0 or later
+- Windows, macOS, or Linux
+- Minimum 512MB RAM available
+- Internet connection for initial Chromium download
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/NastMz/Html2Pdf/issues)
+- **Documentation**: [Comprehensive Guide](COMPREHENSIVE_GUIDE.md)
+- **NuGet Package**: [Nast.Html2Pdf](https://www.nuget.org/packages/Nast.Html2Pdf)
+
+---
+
+_Made with ❤️ by [Kevin Martinez](https://github.com/NastMz)_
+{
+Console.WriteLine($"Error: {result.ErrorMessage}");
+}
+
+````
 
 ### Usage with Configuration
 
@@ -69,7 +237,7 @@ pdfOptions.Header = new PdfHeaderFooter
 
 // Generate PDF
 var result = await html2PdfService.GeneratePdfAsync(htmlTemplate, model, pdfOptions);
-```
+````
 
 ### Usage with Dependency Injection
 
