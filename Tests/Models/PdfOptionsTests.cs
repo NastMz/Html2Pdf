@@ -9,18 +9,18 @@ namespace Nast.Html2Pdf.Tests.Models
             var options = new PdfOptions();
 
             // Assert
-            options.Format.Should().Be("A4");
-            options.Landscape.Should().BeFalse();
-            options.Margins.Should().NotBeNull();
-            options.Header.Should().BeNull();
-            options.Footer.Should().BeNull();
-            options.PrintBackground.Should().BeTrue();
-            options.Scale.Should().Be(1.0f);
-            options.Width.Should().BeNull();
-            options.Height.Should().BeNull();
-            options.PageRanges.Should().BeNull();
-            options.WaitForImages.Should().BeTrue();
-            options.TimeoutMs.Should().Be(30000);
+            options.Format.ShouldBe("A4");
+            options.Landscape.ShouldBeFalse();
+            options.Margins.ShouldNotBeNull();
+            options.Header.ShouldBeNull();
+            options.Footer.ShouldBeNull();
+            options.PrintBackground.ShouldBeTrue();
+            options.Scale.ShouldBe(1.0f);
+            options.Width.ShouldBeNull();
+            options.Height.ShouldBeNull();
+            options.PageRanges.ShouldBeNull();
+            options.WaitForImages.ShouldBeTrue();
+            options.TimeoutMs.ShouldBe(30000);
         }
 
         [Fact]
@@ -30,10 +30,10 @@ namespace Nast.Html2Pdf.Tests.Models
             var margins = new PdfMargins();
 
             // Assert
-            margins.Top.Should().Be("1cm");
-            margins.Bottom.Should().Be("1cm");
-            margins.Left.Should().Be("1cm");
-            margins.Right.Should().Be("1cm");
+            margins.Top.ShouldBe("1cm");
+            margins.Bottom.ShouldBe("1cm");
+            margins.Left.ShouldBe("1cm");
+            margins.Right.ShouldBe("1cm");
         }
 
         [Fact]
@@ -62,16 +62,16 @@ namespace Nast.Html2Pdf.Tests.Models
             options.TimeoutMs = 60000;
 
             // Assert
-            options.Format.Should().Be("Letter");
-            options.Landscape.Should().BeTrue();
-            options.Margins.Should().Be(customMargins);
-            options.PrintBackground.Should().BeFalse();
-            options.Scale.Should().Be(0.8f);
-            options.Width.Should().Be(8.5f);
-            options.Height.Should().Be(11f);
-            options.PageRanges.Should().Be("1-3");
-            options.WaitForImages.Should().BeFalse();
-            options.TimeoutMs.Should().Be(60000);
+            options.Format.ShouldBe("Letter");
+            options.Landscape.ShouldBeTrue();
+            options.Margins.ShouldBe(customMargins);
+            options.PrintBackground.ShouldBeFalse();
+            options.Scale.ShouldBe(0.8f);
+            options.Width.ShouldBe(8.5f);
+            options.Height.ShouldBe(11f);
+            options.PageRanges.ShouldBe("1-3");
+            options.WaitForImages.ShouldBeFalse();
+            options.TimeoutMs.ShouldBe(60000);
         }
 
         [Theory]
@@ -88,7 +88,7 @@ namespace Nast.Html2Pdf.Tests.Models
             options.Format = format;
 
             // Assert
-            options.Format.Should().Be(format);
+            options.Format.ShouldBe(format);
         }
 
         [Theory]
@@ -104,7 +104,7 @@ namespace Nast.Html2Pdf.Tests.Models
             options.Scale = scale;
 
             // Assert
-            options.Scale.Should().Be(scale);
+            options.Scale.ShouldBe(scale);
         }
 
         [Theory]
@@ -120,7 +120,7 @@ namespace Nast.Html2Pdf.Tests.Models
             options.TimeoutMs = timeout;
 
             // Assert
-            options.TimeoutMs.Should().Be(timeout);
+            options.TimeoutMs.ShouldBe(timeout);
         }
     }
 }

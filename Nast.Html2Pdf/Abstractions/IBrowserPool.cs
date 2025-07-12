@@ -3,7 +3,7 @@
     /// <summary>
     /// Interface for browser pool
     /// </summary>
-    public interface IBrowserPool : IDisposable
+    public interface IBrowserPool : IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Gets a page from the pool

@@ -218,21 +218,68 @@ namespace Nast.Html2Pdf.Services
         {
             try
             {
-                // Esperar a que todas las imágenes se carguen
-                await page.WaitForFunctionAsync(@"
-                    () => {
-                        const images = Array.from(document.images);
-                        return images.every(img => img.complete);
+                _logger.LogDebug("Starting image loading wait");
+                
+                // Estrategia simple: esperar un tiempo fijo y verificar estado
+                var maxAttempts = 10;
+                var attemptCount = 0;
+                var delayMs = 200;
+                
+                while (attemptCount < maxAttempts)
+                {
+                    try
+                    {
+                        // Verificar si hay imágenes
+                        var imageCount = await page.EvaluateExpressionAsync<int>("document.images.length");
+                        
+                        if (imageCount == 0)
+                        {
+                            _logger.LogDebug("No images found, skipping wait");
+                            return;
+                        }
+                        
+                        // Contar imágenes cargadas
+                        var loadedImages = await page.EvaluateExpressionAsync<int>(@"
+                            Array.from(document.images).reduce((count, img) => {
+                                try {
+                                    return count + (img.complete ? 1 : 0);
+                                } catch (e) {
+                                    return count + 1; // Si hay error, contar como cargada
+                                }
+                            }, 0)
+                        ");
+                        
+                        _logger.LogDebug("Images: {Total}, Loaded: {Loaded}", imageCount, loadedImages);
+                        
+                        if (loadedImages >= imageCount)
+                        {
+                            _logger.LogDebug("All images loaded successfully");
+                            return;
+                        }
+                        
+                        await Task.Delay(delayMs);
+                        attemptCount++;
                     }
-                ", new WaitForFunctionOptions { Timeout = 5000 });
-            }
-            catch (TimeoutException ex)
-            {
-                _logger.LogWarning(ex, "Timeout waiting for images to load");
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error checking image status on attempt {Attempt}", attemptCount + 1);
+                        // Continuar con el siguiente intento o salir si hay demasiados errores
+                        if (attemptCount > maxAttempts / 2)
+                        {
+                            _logger.LogWarning("Too many errors checking images, continuing with PDF generation");
+                            return;
+                        }
+                        
+                        attemptCount++;
+                        await Task.Delay(delayMs);
+                    }
+                }
+                
+                _logger.LogWarning("Timeout waiting for images to load after {Attempts} attempts", maxAttempts);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error waiting for images to load");
+                _logger.LogWarning(ex, "Error in WaitForImagesAsync - continuing with PDF generation");
             }
         }
 

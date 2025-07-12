@@ -48,14 +48,14 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data!.Length.Should().BeGreaterThan(0);
-            result.Size.Should().BeGreaterThan(0);
-            result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
-            result.ErrorMessage.Should().BeNull();
-            result.Exception.Should().BeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldNotBeNull();
+            result.Data!.Length.ShouldBeGreaterThan(0);
+            result.Size.ShouldBeGreaterThan(0);
+            result.Duration.ShouldBeGreaterThan(TimeSpan.Zero);
+            result.ErrorMessage.ShouldBeNull();
+            result.Exception.ShouldBeNull();
         }
 
         [Fact]
@@ -117,11 +117,11 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data!.Length.Should().BeGreaterThan(0);
-            result.Size.Should().BeGreaterThan(0);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldNotBeNull();
+            result.Data!.Length.ShouldBeGreaterThan(0);
+            result.Size.ShouldBeGreaterThan(0);
         }
 
         [Fact]
@@ -163,10 +163,10 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html, pdfOptions);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data!.Length.Should().BeGreaterThan(0);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldNotBeNull();
+            result.Data!.Length.ShouldBeGreaterThan(0);
         }
 
         [Fact]
@@ -179,8 +179,8 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(invalidHtml);
 
             // Assert - Even invalid HTML should still generate a PDF, browsers are tolerant
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue(); // Browsers typically handle invalid HTML gracefully
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue(); // Browsers typically handle invalid HTML gracefully
         }
 
         [Fact]
@@ -193,9 +193,9 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(emptyHtml);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue(); // Empty HTML now generates a valid empty PDF
-            result.Data.Should().NotBeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue(); // Empty HTML now generates a valid empty PDF
+            result.Data.ShouldNotBeNull();
         }
 
         [Fact]
@@ -230,10 +230,10 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data!.Length.Should().BeGreaterThan(0);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldNotBeNull();
+            result.Data!.Length.ShouldBeGreaterThan(0);
         }
 
         [Fact]
@@ -264,10 +264,10 @@ namespace Nast.Html2Pdf.Tests.Integration
             var result = await _html2PdfService.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().NotBeNull();
-            result.Data!.Length.Should().BeGreaterThan(0);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldNotBeNull();
+            result.Data!.Length.ShouldBeGreaterThan(0);
         }
 
         public void Dispose()

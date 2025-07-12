@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Moq;
 using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Services;
@@ -21,10 +21,10 @@ namespace Nast.Html2Pdf.Tests.Integration
             var serviceProvider = services.BuildServiceProvider();
 
             // Act & Assert - Just validate that services are registered
-            serviceProvider.GetRequiredService<IHtml2PdfService>().Should().NotBeNull();
-            serviceProvider.GetRequiredService<IBrowserPool>().Should().NotBeNull();
-            serviceProvider.GetRequiredService<IPdfConverter>().Should().NotBeNull();
-            serviceProvider.GetRequiredService<IHtmlGenerator>().Should().NotBeNull();
+            serviceProvider.GetRequiredService<IHtml2PdfService>().ShouldNotBeNull();
+            serviceProvider.GetRequiredService<IBrowserPool>().ShouldNotBeNull();
+            serviceProvider.GetRequiredService<IPdfConverter>().ShouldNotBeNull();
+            serviceProvider.GetRequiredService<IHtmlGenerator>().ShouldNotBeNull();
         }
 
         [Fact]
@@ -34,14 +34,14 @@ namespace Nast.Html2Pdf.Tests.Integration
             var options = new BrowserPoolOptions();
 
             // Assert
-            options.Should().NotBeNull();
-            options.MinInstances.Should().Be(1);
-            options.MaxInstances.Should().Be(5);
-            options.MaxLifetimeMinutes.Should().Be(60);
-            options.AcquireTimeoutSeconds.Should().Be(30);
-            options.AdditionalArgs.Should().NotBeNull();
-            options.AdditionalArgs.Should().BeEmpty();
-            options.Headless.Should().BeTrue();
+            options.ShouldNotBeNull();
+            options.MinInstances.ShouldBe(1);
+            options.MaxInstances.ShouldBe(5);
+            options.MaxLifetimeMinutes.ShouldBe(60);
+            options.AcquireTimeoutSeconds.ShouldBe(30);
+            options.AdditionalArgs.ShouldNotBeNull();
+            options.AdditionalArgs.ShouldBeEmpty();
+            options.Headless.ShouldBeTrue();
         }
 
         [Fact]
@@ -60,8 +60,8 @@ namespace Nast.Html2Pdf.Tests.Integration
             var pdfConverter = new PdfConverter(browserPool, pdfConverterLogger.Object);
 
             // Assert
-            browserPool.Should().NotBeNull();
-            pdfConverter.Should().NotBeNull();
+            browserPool.ShouldNotBeNull();
+            pdfConverter.ShouldNotBeNull();
         }
     }
 }

@@ -11,16 +11,16 @@ namespace Nast.Html2Pdf.Tests.Helpers
             var options = PdfOptionsHelper.A4Standard;
 
             // Assert
-            options.Should().NotBeNull();
-            options.Format.Should().Be("A4");
-            options.Landscape.Should().BeFalse();
-            options.PrintBackground.Should().BeTrue();
-            options.Scale.Should().Be(1.0f);
-            options.Margins.Should().NotBeNull();
-            options.Margins.Top.Should().Be("2cm");
-            options.Margins.Bottom.Should().Be("2cm");
-            options.Margins.Left.Should().Be("2cm");
-            options.Margins.Right.Should().Be("2cm");
+            options.ShouldNotBeNull();
+            options.Format.ShouldBe("A4");
+            options.Landscape.ShouldBeFalse();
+            options.PrintBackground.ShouldBeTrue();
+            options.Scale.ShouldBe(1.0f);
+            options.Margins.ShouldNotBeNull();
+            options.Margins.Top.ShouldBe("2cm");
+            options.Margins.Bottom.ShouldBe("2cm");
+            options.Margins.Left.ShouldBe("2cm");
+            options.Margins.Right.ShouldBe("2cm");
         }
 
         [Fact]
@@ -30,16 +30,16 @@ namespace Nast.Html2Pdf.Tests.Helpers
             var options = PdfOptionsHelper.A4Landscape;
 
             // Assert
-            options.Should().NotBeNull();
-            options.Format.Should().Be("A4");
-            options.Landscape.Should().BeTrue();
-            options.PrintBackground.Should().BeTrue();
-            options.Scale.Should().Be(1.0f);
-            options.Margins.Should().NotBeNull();
-            options.Margins.Top.Should().Be("2cm");
-            options.Margins.Bottom.Should().Be("2cm");
-            options.Margins.Left.Should().Be("2cm");
-            options.Margins.Right.Should().Be("2cm");
+            options.ShouldNotBeNull();
+            options.Format.ShouldBe("A4");
+            options.Landscape.ShouldBeTrue();
+            options.PrintBackground.ShouldBeTrue();
+            options.Scale.ShouldBe(1.0f);
+            options.Margins.ShouldNotBeNull();
+            options.Margins.Top.ShouldBe("2cm");
+            options.Margins.Bottom.ShouldBe("2cm");
+            options.Margins.Left.ShouldBe("2cm");
+            options.Margins.Right.ShouldBe("2cm");
         }
 
         [Fact]
@@ -49,11 +49,11 @@ namespace Nast.Html2Pdf.Tests.Helpers
             var options = PdfOptionsHelper.LetterStandard;
 
             // Assert
-            options.Should().NotBeNull();
-            options.Format.Should().Be("Letter");
-            options.Landscape.Should().BeFalse();
-            options.PrintBackground.Should().BeTrue();
-            options.Scale.Should().Be(1.0f);
+            options.ShouldNotBeNull();
+            options.Format.ShouldBe("Letter");
+            options.Landscape.ShouldBeFalse();
+            options.PrintBackground.ShouldBeTrue();
+            options.Scale.ShouldBe(1.0f);
         }
     }
 }

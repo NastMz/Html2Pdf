@@ -14,8 +14,8 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new Html2PdfException(message);
 
             // Assert
-            exception.Message.Should().Be(message);
-            exception.InnerException.Should().BeNull();
+            exception.Message.ShouldBe(message);
+            exception.InnerException.ShouldBeNull();
         }
 
         [Fact]
@@ -29,8 +29,8 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new Html2PdfException(message, innerException);
 
             // Assert
-            exception.Message.Should().Be(message);
-            exception.InnerException.Should().Be(innerException);
+            exception.Message.ShouldBe(message);
+            exception.InnerException.ShouldBe(innerException);
         }
 
         [Fact]
@@ -43,9 +43,9 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new HtmlGenerationException(message);
 
             // Assert
-            exception.Should().BeOfType<HtmlGenerationException>();
-            exception.Should().BeAssignableTo<Html2PdfException>();
-            exception.Message.Should().Be(message);
+            exception.ShouldBeOfType<HtmlGenerationException>();
+            exception.ShouldBeAssignableTo<Html2PdfException>();
+            exception.Message.ShouldBe(message);
         }
 
         [Fact]
@@ -58,9 +58,9 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new PdfConversionException(message);
 
             // Assert
-            exception.Should().BeOfType<PdfConversionException>();
-            exception.Should().BeAssignableTo<Html2PdfException>();
-            exception.Message.Should().Be(message);
+            exception.ShouldBeOfType<PdfConversionException>();
+            exception.ShouldBeAssignableTo<Html2PdfException>();
+            exception.Message.ShouldBe(message);
         }
 
         [Fact]
@@ -73,9 +73,9 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new BrowserPoolException(message);
 
             // Assert
-            exception.Should().BeOfType<BrowserPoolException>();
-            exception.Should().BeAssignableTo<Html2PdfException>();
-            exception.Message.Should().Be(message);
+            exception.ShouldBeOfType<BrowserPoolException>();
+            exception.ShouldBeAssignableTo<Html2PdfException>();
+            exception.Message.ShouldBe(message);
         }
 
         [Fact]
@@ -88,9 +88,9 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new TemplateException(message);
 
             // Assert
-            exception.Should().BeOfType<TemplateException>();
-            exception.Should().BeAssignableTo<Html2PdfException>();
-            exception.Message.Should().Be(message);
+            exception.ShouldBeOfType<TemplateException>();
+            exception.ShouldBeAssignableTo<Html2PdfException>();
+            exception.Message.ShouldBe(message);
         }
 
         [Fact]
@@ -103,9 +103,9 @@ namespace Nast.Html2Pdf.Tests.Exceptions
             var exception = new ResourceException(message);
 
             // Assert
-            exception.Should().BeOfType<ResourceException>();
-            exception.Should().BeAssignableTo<Html2PdfException>();
-            exception.Message.Should().Be(message);
+            exception.ShouldBeOfType<ResourceException>();
+            exception.ShouldBeAssignableTo<Html2PdfException>();
+            exception.Message.ShouldBe(message);
         }
 
         [Fact]
@@ -116,19 +116,19 @@ namespace Nast.Html2Pdf.Tests.Exceptions
 
             // Act & Assert
             var htmlException = new HtmlGenerationException("HTML error", innerException);
-            htmlException.InnerException.Should().Be(innerException);
+            htmlException.InnerException.ShouldBe(innerException);
 
             var pdfException = new PdfConversionException("PDF error", innerException);
-            pdfException.InnerException.Should().Be(innerException);
+            pdfException.InnerException.ShouldBe(innerException);
 
             var browserException = new BrowserPoolException("Browser error", innerException);
-            browserException.InnerException.Should().Be(innerException);
+            browserException.InnerException.ShouldBe(innerException);
 
             var templateException = new TemplateException("Template error", innerException);
-            templateException.InnerException.Should().Be(innerException);
+            templateException.InnerException.ShouldBe(innerException);
 
             var resourceException = new ResourceException("Resource error", innerException);
-            resourceException.InnerException.Should().Be(innerException);
+            resourceException.InnerException.ShouldBe(innerException);
         }
     }
 }

@@ -292,6 +292,42 @@ namespace Nast.Html2Pdf.Services
             });
         }
 
+        /// <summary>
+        /// Force closes all browser processes - used for cleanup in tests
+        /// </summary>
+        public async Task ForceCloseAllBrowsersAsync()
+        {
+            try
+            {
+                if (_browser != null)
+                {
+                    await _browser.CloseAsync();
+                    _browser = null;
+                }
+
+                // Force kill any remaining chromium processes
+                var processes = Process.GetProcessesByName("chrome");
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Kill();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error killing chrome process {ProcessId}", process.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during force close of browsers");
+            }
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -307,29 +343,77 @@ namespace Nast.Html2Pdf.Services
                 _cleanupTimer?.Dispose();
                 _semaphore?.Dispose();
 
-                // Close all pages and the browser
-                _ = Task.Run(async () =>
+                // Close all pages and the browser - wait for completion
+                try
                 {
-                    try
+                    var disposeTask = Task.Run(async () =>
                     {
-                        foreach (var page in _allPages.Values)
+                        try
                         {
-                            await ClosePageAsync(page);
-                        }
+                            foreach (var page in _allPages.Values)
+                            {
+                                await ClosePageAsync(page);
+                            }
 
-                        if (_browser != null)
-                        {
-                            await _browser.CloseAsync();
-                            _browser = null;
+                            if (_browser != null)
+                            {
+                                await _browser.CloseAsync();
+                                _browser = null;
+                            }
                         }
-                    }
-                    catch (Exception ex)
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error disposing browser pool");
+                        }
+                    });
+
+                    // Wait for disposal to complete with timeout
+                    if (!disposeTask.Wait(TimeSpan.FromSeconds(10)))
                     {
-                        _logger.LogError(ex, "Error disposing browser pool");
+                        _logger.LogWarning("Browser pool disposal timed out");
                     }
-                });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during browser pool disposal");
+                }
 
                 _logger.LogDebug("Browser pool disposed");
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+
+                if (_cleanupTimer != null)
+                {
+                    await _cleanupTimer.DisposeAsync();
+                }
+                _semaphore?.Dispose();
+
+                // Close all pages and the browser asynchronously
+                try
+                {
+                    foreach (var page in _allPages.Values)
+                    {
+                        await ClosePageAsync(page);
+                    }
+
+                    if (_browser != null)
+                    {
+                        await _browser.CloseAsync();
+                        _browser = null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error disposing browser pool asynchronously");
+                }
+
+                _logger.LogDebug("Browser pool disposed asynchronously");
             }
         }
     }

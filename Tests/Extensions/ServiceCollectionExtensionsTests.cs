@@ -19,10 +19,10 @@ namespace Nast.Html2Pdf.Tests.Extensions
             // Assert
             var serviceProvider = services.BuildServiceProvider();
             
-            serviceProvider.GetService<IBrowserPool>().Should().NotBeNull();
-            serviceProvider.GetService<IHtmlGenerator>().Should().NotBeNull();
-            serviceProvider.GetService<IPdfConverter>().Should().NotBeNull();
-            serviceProvider.GetService<IHtml2PdfService>().Should().NotBeNull();
+            serviceProvider.GetService<IBrowserPool>().ShouldNotBeNull();
+            serviceProvider.GetService<IHtmlGenerator>().ShouldNotBeNull();
+            serviceProvider.GetService<IPdfConverter>().ShouldNotBeNull();
+            serviceProvider.GetService<IHtml2PdfService>().ShouldNotBeNull();
         }
 
         [Fact]
@@ -46,9 +46,9 @@ namespace Nast.Html2Pdf.Tests.Extensions
             var serviceProvider = services.BuildServiceProvider();
             var browserPoolOptions = serviceProvider.GetService<IOptions<BrowserPoolOptions>>()?.Value;
             
-            browserPoolOptions.Should().NotBeNull();
-            browserPoolOptions!.MinInstances.Should().Be(expectedMinSize);
-            browserPoolOptions.MaxInstances.Should().Be(expectedMaxSize);
+            browserPoolOptions.ShouldNotBeNull();
+            browserPoolOptions!.MinInstances.ShouldBe(expectedMinSize);
+            browserPoolOptions.MaxInstances.ShouldBe(expectedMaxSize);
         }
 
         [Fact]
@@ -66,8 +66,8 @@ namespace Nast.Html2Pdf.Tests.Extensions
             var serviceProvider = services.BuildServiceProvider();
             
             // Should not throw due to multiple registrations
-            serviceProvider.GetService<IHtml2PdfService>().Should().NotBeNull();
-            serviceProvider.GetService<IBrowserPool>().Should().NotBeNull();
+            serviceProvider.GetService<IHtml2PdfService>().ShouldNotBeNull();
+            serviceProvider.GetService<IBrowserPool>().ShouldNotBeNull();
         }
 
         [Fact]
@@ -85,13 +85,13 @@ namespace Nast.Html2Pdf.Tests.Extensions
             
             // Browser pool should be singleton
             var browserPoolDescriptor = serviceDescriptors.FirstOrDefault(s => s.ServiceType == typeof(IBrowserPool));
-            browserPoolDescriptor.Should().NotBeNull();
-            browserPoolDescriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
+            browserPoolDescriptor.ShouldNotBeNull();
+            browserPoolDescriptor!.Lifetime.ShouldBe(ServiceLifetime.Singleton);
             
             // Other services should be scoped
             var html2PdfServiceDescriptor = serviceDescriptors.FirstOrDefault(s => s.ServiceType == typeof(IHtml2PdfService));
-            html2PdfServiceDescriptor.Should().NotBeNull();
-            html2PdfServiceDescriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+            html2PdfServiceDescriptor.ShouldNotBeNull();
+            html2PdfServiceDescriptor!.Lifetime.ShouldBe(ServiceLifetime.Scoped);
         }
 
         [Fact]
@@ -110,8 +110,8 @@ namespace Nast.Html2Pdf.Tests.Extensions
             using var scope = serviceProvider.CreateScope();
             var html2PdfService = scope.ServiceProvider.GetService<IHtml2PdfService>();
             
-            html2PdfService.Should().NotBeNull();
-            html2PdfService.Should().BeOfType<Html2PdfService>();
+            html2PdfService.ShouldNotBeNull();
+            html2PdfService.ShouldBeOfType<Html2PdfService>();
         }
 
         [Fact]
@@ -131,12 +131,12 @@ namespace Nast.Html2Pdf.Tests.Extensions
             var serviceDescriptors = services.ToList();
             
             var htmlGeneratorDescriptor = serviceDescriptors.FirstOrDefault(s => s.ServiceType == typeof(IHtmlGenerator));
-            htmlGeneratorDescriptor.Should().NotBeNull();
-            htmlGeneratorDescriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
+            htmlGeneratorDescriptor.ShouldNotBeNull();
+            htmlGeneratorDescriptor!.Lifetime.ShouldBe(ServiceLifetime.Singleton);
             
             var pdfConverterDescriptor = serviceDescriptors.FirstOrDefault(s => s.ServiceType == typeof(IPdfConverter));
-            pdfConverterDescriptor.Should().NotBeNull();
-            pdfConverterDescriptor!.Lifetime.Should().Be(ServiceLifetime.Singleton);
+            pdfConverterDescriptor.ShouldNotBeNull();
+            pdfConverterDescriptor!.Lifetime.ShouldBe(ServiceLifetime.Singleton);
         }
     }
 }

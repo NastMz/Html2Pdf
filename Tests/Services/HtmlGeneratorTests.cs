@@ -29,12 +29,12 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Html.Should().NotBeNullOrEmpty();
-            result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
-            result.ErrorMessage.Should().BeNull();
-            result.Exception.Should().BeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Html.ShouldNotBeNullOrEmpty();
+            result.Duration.ShouldBeGreaterThan(TimeSpan.Zero);
+            result.ErrorMessage.ShouldBeNull();
+            result.Exception.ShouldBeNull();
         }
 
         [Fact]
@@ -44,10 +44,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(null!, null);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Html.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Html.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -57,10 +57,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync("", null);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Html.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Html.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -78,10 +78,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Html.Should().NotBeNullOrEmpty();
-            result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Html.ShouldNotBeNullOrEmpty();
+            result.Duration.ShouldBeGreaterThan(TimeSpan.Zero);
         }
 
         [Fact]
@@ -100,9 +100,9 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(template, null, options);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Html.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Html.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -115,10 +115,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateFromFileAsync(filePath, null);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Html.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Html.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -131,10 +131,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateFromResourceAsync(resourceKey, null);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Html.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Html.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -148,11 +148,11 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Html.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
-            result.Exception.Should().NotBeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Html.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
+            result.Exception.ShouldNotBeNull();
         }
 
         [Theory]
@@ -164,9 +164,9 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _htmlGenerator.GenerateAsync(template, null);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Html.Should().NotBeNull(); // Whitespace templates now generate empty/minimal HTML
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Html.ShouldNotBeNull(); // Whitespace templates now generate empty/minimal HTML
         }
     }
 }

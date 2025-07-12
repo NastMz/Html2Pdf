@@ -26,6 +26,7 @@ namespace Nast.Html2Pdf.Tests.Services
             services.AddSingleton(_htmlGeneratorMock.Object);
             services.AddSingleton(_pdfConverterMock.Object);
             services.AddSingleton(_browserPoolMock.Object);
+            services.AddScoped<Html2PdfDiagnostics>(); // Agregar servicio de diagnósticos
             services.AddScoped<IHtml2PdfService, Html2PdfService>();
 
             _serviceProvider = services.BuildServiceProvider();
@@ -51,11 +52,11 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
-            result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
+            result.Duration.ShouldBeGreaterThan(TimeSpan.Zero);
 
             // Verificar que se llamaron los métodos correctos
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(template, model, It.IsAny<HtmlGenerationOptions>()), Times.Once);
@@ -77,10 +78,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().Contain(errorMessage);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldContain(errorMessage);
 
             // Verificar que no se llamó al convertidor de PDF
             _pdfConverterMock.Verify(x => x.ConvertAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
@@ -105,10 +106,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().Contain(errorMessage);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldContain(errorMessage);
 
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(template, model, It.IsAny<HtmlGenerationOptions>()), Times.Once);
             _pdfConverterMock.Verify(x => x.ConvertAsync(expectedHtml, It.IsAny<PdfOptions>()), Times.Once);
@@ -133,10 +134,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfFromFileAsync(templatePath, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
 
             _htmlGeneratorMock.Verify(x => x.GenerateFromFileAsync(templatePath, model, It.IsAny<HtmlGenerationOptions>()), Times.Once);
             _pdfConverterMock.Verify(x => x.ConvertAsync(expectedHtml, It.IsAny<PdfOptions>()), Times.Once);
@@ -156,10 +157,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
 
             // Verificar que no se llamó al generador HTML
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<HtmlGenerationOptions>()), Times.Never);
@@ -180,10 +181,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfFromUrlAsync(url);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
 
             // Verificar que no se llamó al generador HTML
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<HtmlGenerationOptions>()), Times.Never);
@@ -200,10 +201,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfAsync(template);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Theory]
@@ -216,10 +217,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Theory]
@@ -232,10 +233,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfFromUrlAsync(url);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Fact]
@@ -260,8 +261,8 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _html2PdfService.GeneratePdfAsync(template, model, pdfOptions, htmlOptions);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
 
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(template, model, It.Is<HtmlGenerationOptions>(o => o.InlineStyles == false)), Times.Once);
             _pdfConverterMock.Verify(x => x.ConvertAsync(expectedHtml, It.Is<PdfOptions>(o => o.Format == "A4" && o.Landscape)), Times.Once);

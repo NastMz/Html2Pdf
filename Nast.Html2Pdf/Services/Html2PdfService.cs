@@ -30,6 +30,11 @@ namespace Nast.Html2Pdf.Services
         public async Task<PdfResult> GeneratePdfAsync(string template, object? model = null,
             PdfOptions? pdfOptions = null, HtmlGenerationOptions? htmlOptions = null)
         {
+            if (string.IsNullOrEmpty(template))
+            {
+                return PdfResult.CreateError("Template cannot be null or empty");
+            }
+
             using var operation = _diagnostics.BeginPdfGeneration("Template", new { 
                 TemplateLength = template.Length, 
                 HasModel = model != null,
@@ -156,6 +161,11 @@ namespace Nast.Html2Pdf.Services
 
         public async Task<PdfResult> GeneratePdfFromHtmlAsync(string html, PdfOptions? pdfOptions = null)
         {
+            if (string.IsNullOrEmpty(html))
+            {
+                return PdfResult.CreateError("HTML cannot be null or empty");
+            }
+
             var stopwatch = Stopwatch.StartNew();
 
             try
@@ -186,6 +196,11 @@ namespace Nast.Html2Pdf.Services
 
         public async Task<PdfResult> GeneratePdfFromUrlAsync(string url, PdfOptions? pdfOptions = null)
         {
+            if (string.IsNullOrEmpty(url))
+            {
+                return PdfResult.CreateError("URL cannot be null or empty");
+            }
+
             var stopwatch = Stopwatch.StartNew();
 
             try

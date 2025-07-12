@@ -29,9 +29,9 @@ namespace Nast.Html2Pdf.Tests.Services
             var page = await browserPool.GetPageAsync();
 
             // Assert
-            page.Should().NotBeNull();
-            page.Should().BeAssignableTo<IPooledPage>();
-            page.IsInUse.Should().BeTrue();
+            page.ShouldNotBeNull();
+            page.ShouldBeAssignableTo<IPooledPage>();
+            page.IsInUse.ShouldBeTrue();
         }
 
         [Fact]
@@ -45,9 +45,9 @@ namespace Nast.Html2Pdf.Tests.Services
             var page2 = await browserPool.GetPageAsync();
 
             // Assert
-            page1.Should().NotBeNull();
-            page2.Should().NotBeNull();
-            page1.Should().NotBeSameAs(page2);
+            page1.ShouldNotBeNull();
+            page2.ShouldNotBeNull();
+            page1.ShouldNotBeSameAs(page2);
             
             // Cleanup
             await browserPool.ReturnPageAsync(page1);
@@ -62,8 +62,7 @@ namespace Nast.Html2Pdf.Tests.Services
             browserPool.Dispose();
 
             // Act & Assert
-            await FluentActions.Invoking(() => browserPool.GetPageAsync())
-                .Should().ThrowAsync<ObjectDisposedException>();
+            await Shouldly.Should.ThrowAsync<ObjectDisposedException>(async () => await browserPool.GetPageAsync());
         }
 
         [Fact]
@@ -76,8 +75,7 @@ namespace Nast.Html2Pdf.Tests.Services
             browserPool.Dispose();
 
             // Assert
-            FluentActions.Invoking(() => browserPool.Dispose())
-                .Should().NotThrow(); // Should handle multiple dispose calls
+            Shouldly.Should.NotThrow(() => browserPool.Dispose()); // Should handle multiple dispose calls
         }
 
         [Fact]
@@ -86,13 +84,13 @@ namespace Nast.Html2Pdf.Tests.Services
             // Arrange
             var browserPool = new BrowserPool(_options, _loggerMock.Object);
             var page = await browserPool.GetPageAsync();
-            page.IsInUse.Should().BeTrue();
+            page.IsInUse.ShouldBeTrue();
 
             // Act
             await browserPool.ReturnPageAsync(page);
 
             // Assert
-            page.IsInUse.Should().BeFalse();
+            page.IsInUse.ShouldBeFalse();
         }
 
         [Fact]
@@ -107,7 +105,7 @@ namespace Nast.Html2Pdf.Tests.Services
 
             // Assert
             // El dispose debería devolver la página al pool
-            page.IsInUse.Should().BeFalse();
+            page.IsInUse.ShouldBeFalse();
         }
 
         [Fact]
@@ -127,12 +125,11 @@ namespace Nast.Html2Pdf.Tests.Services
                 await pool.GetPageAsync();
 
                 // Act & Assert
-                var exception = await FluentActions.Invoking(() => pool.GetPageAsync())
-                    .Should().ThrowAsync<Exception>();
+                var exception = await Shouldly.Should.ThrowAsync<Exception>(async () => await pool.GetPageAsync());
                 
                 // Should be either timeout or browser creation error
-                var message = exception.Which.Message;
-                (message.Contains("Timeout") || message.Contains("Error getting browser page")).Should().BeTrue();
+                var message = exception.Message;
+                (message.Contains("Timeout") || message.Contains("Error getting browser page")).ShouldBeTrue();
 
                 // Skip cleanup to avoid semaphore issues - the test's purpose is to verify exception throwing
                 // The pool disposal will handle cleanup

@@ -45,13 +45,13 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
-            result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
-            result.ErrorMessage.Should().BeNull();
-            result.Exception.Should().BeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
+            result.Duration.ShouldBeGreaterThan(TimeSpan.Zero);
+            result.ErrorMessage.ShouldBeNull();
+            result.Exception.ShouldBeNull();
         }
 
         [Fact]
@@ -70,12 +70,12 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.Size.Should().Be(0);
-            result.ErrorMessage.Should().Contain("Template compilation failed");
-            result.Exception.Should().BeOfType<HtmlGenerationException>();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.Size.ShouldBe(0);
+            result.ErrorMessage.ShouldContain("Template compilation failed");
+            result.Exception.ShouldBeOfType<HtmlGenerationException>();
         }
 
         [Fact]
@@ -99,12 +99,12 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfAsync(template, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.Size.Should().Be(0);
-            result.ErrorMessage.Should().Contain("PDF conversion failed");
-            result.Exception.Should().BeOfType<PdfConversionException>();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.Size.ShouldBe(0);
+            result.ErrorMessage.ShouldContain("PDF conversion failed");
+            result.Exception.ShouldBeOfType<PdfConversionException>();
         }
 
         [Fact]
@@ -128,10 +128,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfFromFileAsync(templatePath, model);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
         }
 
         [Fact]
@@ -149,10 +149,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
             
             // Verify HTML generator was not called
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<HtmlGenerationOptions>()), Times.Never);
@@ -173,10 +173,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfFromUrlAsync(url);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(expectedPdfData);
-            result.Size.Should().Be(expectedPdfData.Length);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(expectedPdfData);
+            result.Size.ShouldBe(expectedPdfData.Length);
         }
 
         [Theory]
@@ -189,10 +189,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfAsync(template);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Theory]
@@ -205,10 +205,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfFromHtmlAsync(html);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
 
         [Theory]
@@ -221,10 +221,10 @@ namespace Nast.Html2Pdf.Tests.Services
             var result = await _service.GeneratePdfFromUrlAsync(url);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().NotBeNullOrEmpty();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNullOrEmpty();
         }
     }
 }

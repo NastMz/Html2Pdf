@@ -119,15 +119,39 @@ namespace Nast.Html2Pdf.Services
         /// </summary>
         public void LogDetailedError(string operationId, Exception exception, string context, object? additionalData = null)
         {
+            if (_logger == null)
+            {
+                throw new InvalidOperationException("Logger is not initialized. Make sure Html2PdfDiagnostics is properly registered in DI container.");
+            }
+
+            operationId = operationId ?? "Unknown";
+            context = context ?? "Unknown";
+            
+            if (exception == null)
+            {
+                _logger.LogError("LogDetailedError called with null exception for operation {OperationId}", operationId);
+                return;
+            }
+
             _logger.LogError(exception,
                 "Detailed Error: {OperationId} | Context: {Context} | Exception: {ExceptionType} | Message: {Message}",
                 operationId, context, exception.GetType().Name, exception.Message);
 
             if (additionalData != null)
             {
-                _logger.LogDebug(
-                    "Additional Error Data: {OperationId} | {AdditionalData}",
-                    operationId, JsonSerializer.Serialize(additionalData, new JsonSerializerOptions { WriteIndented = true }));
+                try
+                {
+                    var serialized = JsonSerializer.Serialize(additionalData, new JsonSerializerOptions { WriteIndented = true });
+                    _logger.LogDebug(
+                        "Additional Error Data: {OperationId} | {AdditionalData}",
+                        operationId, serialized);
+                }
+                catch (Exception serializationEx)
+                {
+                    _logger.LogDebug(
+                        "Additional Error Data (Serialization Failed): {OperationId} | Type: {Type} | SerializationError: {SerializationError}",
+                        operationId, additionalData.GetType().Name, serializationEx.Message);
+                }
             }
         }
 

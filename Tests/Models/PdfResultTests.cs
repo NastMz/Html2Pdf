@@ -13,13 +13,13 @@ namespace Nast.Html2Pdf.Tests.Models
             var result = PdfResult.CreateSuccess(data, duration);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeEquivalentTo(data);
-            result.Duration.Should().Be(duration);
-            result.Size.Should().Be(data.Length);
-            result.ErrorMessage.Should().BeNull();
-            result.Exception.Should().BeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeTrue();
+            result.Data.ShouldBe(data);
+            result.Duration.ShouldBe(duration);
+            result.Size.ShouldBe(data.Length);
+            result.ErrorMessage.ShouldBeNull();
+            result.Exception.ShouldBeNull();
         }
 
         [Fact]
@@ -33,13 +33,13 @@ namespace Nast.Html2Pdf.Tests.Models
             var result = PdfResult.CreateError(errorMessage, null, duration);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.Duration.Should().Be(duration);
-            result.Size.Should().Be(0);
-            result.ErrorMessage.Should().Be(errorMessage);
-            result.Exception.Should().BeNull();
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.Duration.ShouldBe(duration);
+            result.Size.ShouldBe(0);
+            result.ErrorMessage.ShouldBe(errorMessage);
+            result.Exception.ShouldBeNull();
         }
 
         [Fact]
@@ -53,13 +53,13 @@ namespace Nast.Html2Pdf.Tests.Models
             var result = PdfResult.CreateError(exception.Message, exception, duration);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.Duration.Should().Be(duration);
-            result.Size.Should().Be(0);
-            result.ErrorMessage.Should().Be(exception.Message);
-            result.Exception.Should().Be(exception);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.Duration.ShouldBe(duration);
+            result.Size.ShouldBe(0);
+            result.ErrorMessage.ShouldBe(exception.Message);
+            result.Exception.ShouldBe(exception);
         }
 
         [Fact]
@@ -74,13 +74,13 @@ namespace Nast.Html2Pdf.Tests.Models
             var result = PdfResult.CreateError(errorMessage, exception, duration);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.Duration.Should().Be(duration);
-            result.Size.Should().Be(0);
-            result.ErrorMessage.Should().Be(errorMessage);
-            result.Exception.Should().Be(exception);
+            result.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.Duration.ShouldBe(duration);
+            result.Size.ShouldBe(0);
+            result.ErrorMessage.ShouldBe(errorMessage);
+            result.Exception.ShouldBe(exception);
         }
 
         [Fact]
@@ -93,7 +93,7 @@ namespace Nast.Html2Pdf.Tests.Models
             var size = result.Size;
 
             // Assert
-            size.Should().Be(0);
+            size.ShouldBe(0);
         }
 
         [Fact]
@@ -106,7 +106,7 @@ namespace Nast.Html2Pdf.Tests.Models
             var size = result.Size;
 
             // Assert
-            size.Should().Be(0);
+            size.ShouldBe(0);
         }
 
         [Fact]
@@ -120,7 +120,7 @@ namespace Nast.Html2Pdf.Tests.Models
             var size = result.Size;
 
             // Assert
-            size.Should().Be(data.Length);
+            size.ShouldBe(data.Length);
         }
 
         [Fact]
@@ -130,12 +130,12 @@ namespace Nast.Html2Pdf.Tests.Models
             var result = new PdfResult();
 
             // Assert
-            result.Success.Should().BeFalse();
-            result.Data.Should().BeNull();
-            result.ErrorMessage.Should().BeNull();
-            result.Exception.Should().BeNull();
-            result.Duration.Should().Be(TimeSpan.Zero);
-            result.Size.Should().Be(0);
+            result.Success.ShouldBeFalse();
+            result.Data.ShouldBeNull();
+            result.ErrorMessage.ShouldBeNull();
+            result.Exception.ShouldBeNull();
+            result.Duration.ShouldBe(TimeSpan.Zero);
+            result.Size.ShouldBe(0);
         }
     }
 }
