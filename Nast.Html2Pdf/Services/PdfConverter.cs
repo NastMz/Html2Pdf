@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
+using PuppeteerSharp;
+using PuppeteerSharp.Media;
 using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Models;
 using System.Diagnostics;
+using PuppeteerPdfOptions = PuppeteerSharp.PdfOptions;
+using ModelPdfOptions = Nast.Html2Pdf.Models.PdfOptions;
 
 namespace Nast.Html2Pdf.Services
 {
@@ -20,10 +23,10 @@ namespace Nast.Html2Pdf.Services
             _logger = logger;
         }
 
-        public async Task<PdfResult> ConvertAsync(string html, PdfOptions? options = null)
+        public async Task<PdfResult> ConvertAsync(string html, ModelPdfOptions? options = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            options ??= new PdfOptions();
+            options ??= new ModelPdfOptions();
 
             try
             {
@@ -35,9 +38,9 @@ namespace Nast.Html2Pdf.Services
                 await ConfigurePageAsync(page.Page, options);
 
                 // Load HTML
-                await page.Page.SetContentAsync(html, new PageSetContentOptions
+                await page.Page.SetContentAsync(html, new NavigationOptions
                 {
-                    WaitUntil = WaitUntilState.NetworkIdle,
+                    WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
                     Timeout = options.TimeoutMs
                 });
 
@@ -64,10 +67,10 @@ namespace Nast.Html2Pdf.Services
             }
         }
 
-        public async Task<PdfResult> ConvertFromUrlAsync(string url, PdfOptions? options = null)
+        public async Task<PdfResult> ConvertFromUrlAsync(string url, ModelPdfOptions? options = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            options ??= new PdfOptions();
+            options ??= new ModelPdfOptions();
 
             try
             {
@@ -79,9 +82,9 @@ namespace Nast.Html2Pdf.Services
                 await ConfigurePageAsync(page.Page, options);
 
                 // Navigate to URL
-                await page.Page.GotoAsync(url, new PageGotoOptions
+                await page.Page.GoToAsync(url, new NavigationOptions
                 {
-                    WaitUntil = WaitUntilState.NetworkIdle,
+                    WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
                     Timeout = options.TimeoutMs
                 });
 
@@ -108,36 +111,37 @@ namespace Nast.Html2Pdf.Services
             }
         }
 
-        private static async Task ConfigurePageAsync(IPage page, PdfOptions options)
+        private static async Task ConfigurePageAsync(IPage page, ModelPdfOptions options)
         {
             // Configure color scheme
-            await page.EmulateMediaAsync(new PageEmulateMediaOptions
-            {
-                ColorScheme = options.ColorScheme
-            });
+            await page.EmulateMediaTypeAsync(MediaType.Print);
 
             // Configure viewport if necessary
             if (options.Width.HasValue && options.Height.HasValue)
             {
-                await page.SetViewportSizeAsync((int)(options.Width.Value * 96), (int)(options.Height.Value * 96));
+                await page.SetViewportAsync(new ViewPortOptions
+                {
+                    Width = (int)(options.Width.Value * 96),
+                    Height = (int)(options.Height.Value * 96)
+                });
             }
         }
 
-        private async Task<byte[]> GeneratePdfAsync(IPage page, PdfOptions options)
+        private async Task<byte[]> GeneratePdfAsync(IPage page, ModelPdfOptions options)
         {
-            var pdfOptions = new PagePdfOptions
+            var pdfOptions = new PuppeteerPdfOptions
             {
-                Format = options.Format.ToString(),
+                Format = GetPaperFormat(options.Format),
                 Landscape = options.Landscape,
                 PrintBackground = options.PrintBackground,
-                Scale = options.Scale,
+                Scale = (decimal)options.Scale,
                 PreferCSSPageSize = true
             };
 
             // Configure margins
             if (options.Margins != null)
             {
-                pdfOptions.Margin = new Margin
+                pdfOptions.MarginOptions = new MarginOptions
                 {
                     Top = options.Margins.Top,
                     Bottom = options.Margins.Bottom,
@@ -177,7 +181,7 @@ namespace Nast.Html2Pdf.Services
                 pdfOptions.DisplayHeaderFooter = true;
             }
 
-            return await page.PdfAsync(pdfOptions);
+            return await page.PdfDataAsync(pdfOptions);
         }
 
         private async Task<string> ProcessHeaderFooterTemplate(PdfHeaderFooter headerFooter)
@@ -220,16 +224,31 @@ namespace Nast.Html2Pdf.Services
                         const images = Array.from(document.images);
                         return images.every(img => img.complete);
                     }
-                ", new PageWaitForFunctionOptions { Timeout = 5000 });
+                ", new WaitForFunctionOptions { Timeout = 5000 });
             }
-            catch (TimeoutException)
+            catch (TimeoutException ex)
             {
-                _logger.LogWarning("Timeout waiting for images to load");
+                _logger.LogWarning(ex, "Timeout waiting for images to load");
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Error waiting for images to load");
             }
+        }
+
+        private static PaperFormat GetPaperFormat(string format)
+        {
+            return format.ToUpperInvariant() switch
+            {
+                "A4" => PaperFormat.A4,
+                "A3" => PaperFormat.A3,
+                "A5" => PaperFormat.A5,
+                "LETTER" => PaperFormat.Letter,
+                "LEGAL" => PaperFormat.Legal,
+                "TABLOID" => PaperFormat.Tabloid,
+                "LEDGER" => PaperFormat.Ledger,
+                _ => PaperFormat.A4
+            };
         }
     }
 }

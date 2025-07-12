@@ -12,8 +12,8 @@
     <Authors>Kevin Martinez</Authors>
     <Company>Nast</Company>
     <Product>Nast.Html2Pdf</Product>
-    <Description>A .NET library for converting HTML to PDF using RazorLight for template generation and Playwright for PDF conversion. Features include dynamic template support, browser pool optimization, flexible configuration, and complete dependency injection integration.</Description>
-    <PackageTags>html;pdf;converter;razor;playwright;template;generation;browser;pool;dependency-injection</PackageTags>
+    <Description>A .NET library for converting HTML to PDF using RazorLight for template generation and PuppeteerSharp for PDF conversion. Features include dynamic template support, browser pool optimization, flexible configuration, and complete dependency injection integration.</Description>
+    <PackageTags>html;pdf;converter;razor;puppeteer;template;generation;browser;pool;dependency-injection</PackageTags>
     <PackageProjectUrl>https://github.com/NastMz/Html2Pdf</PackageProjectUrl>
     <RepositoryUrl>https://github.com/NastMz/Html2Pdf</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <PackageReference Include="RazorLight" Version="2.3.1" />
-    <PackageReference Include="Microsoft.Playwright" Version="1.53.0" />
+    <PackageReference Include="PuppeteerSharp" Version="20.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.7" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />

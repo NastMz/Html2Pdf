@@ -1,5 +1,3 @@
-using Microsoft.Playwright;
-
 namespace Nast.Html2Pdf.Models
 {
     /// <summary>
@@ -56,11 +54,6 @@ namespace Nast.Html2Pdf.Models
         /// Page ranges to print
         /// </summary>
         public string? PageRanges { get; set; }
-
-        /// <summary>
-        /// Preferencias de color
-        /// </summary>
-        public ColorScheme ColorScheme { get; set; } = ColorScheme.Light;
 
         /// <summary>
         /// Esperar a que se carguen las imágenes

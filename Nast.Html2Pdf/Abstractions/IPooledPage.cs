@@ -1,4 +1,6 @@
-﻿namespace Nast.Html2Pdf.Abstractions
+﻿using PuppeteerSharp;
+
+namespace Nast.Html2Pdf.Abstractions
 {
     /// <summary>
     /// Interface for a pooled page
@@ -6,9 +8,9 @@
     public interface IPooledPage : IDisposable
     {
         /// <summary>
-        /// Playwright page
+        /// PuppeteerSharp page
         /// </summary>
-        Microsoft.Playwright.IPage Page { get; }
+        IPage Page { get; }
 
         /// <summary>
         /// Indicates if the page is in use

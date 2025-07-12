@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
+using PuppeteerSharp;
 using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Exceptions;
 using System.Collections.Concurrent;
@@ -35,7 +35,7 @@ namespace Nast.Html2Pdf.Services
         /// <summary>
         /// Additional arguments for the browser
         /// </summary>
-        public string[]? AdditionalArgs { get; set; }
+        public string[] AdditionalArgs { get; set; } = Array.Empty<string>();
 
         /// <summary>
         /// Run in headless mode
@@ -204,7 +204,7 @@ namespace Nast.Html2Pdf.Services
             var page = await _browser!.NewPageAsync();
             var pooledPage = new PooledPage(page, this);
 
-            _allPages.TryAdd(pooledPage.Page.Url, pooledPage);
+            _allPages.TryAdd(page.Url, pooledPage);
             return pooledPage;
         }
 
@@ -212,15 +212,16 @@ namespace Nast.Html2Pdf.Services
         {
             _logger.LogDebug("Initializing browser");
 
-            var playwright = await Playwright.CreateAsync();
+            // Ensure browser is downloaded (auto-download on first use)
+            await new BrowserFetcher().DownloadAsync();
 
-            var launchOptions = new BrowserTypeLaunchOptions
+            var launchOptions = new LaunchOptions
             {
                 Headless = _options.Headless,
                 Args = _options.AdditionalArgs
             };
 
-            _browser = await playwright.Chromium.LaunchAsync(launchOptions);
+            _browser = await Puppeteer.LaunchAsync(launchOptions);
 
             _logger.LogDebug("Browser initialized successfully");
         }
