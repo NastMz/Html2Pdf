@@ -65,16 +65,17 @@ if (result.Success)
 var template = @"
 <html>
 <body>
-    <h1>Invoice #{{InvoiceNumber}}</h1>
-    <p>Customer: {{CustomerName}}</p>
-    <p>Date: {{Date:yyyy-MM-dd}}</p>
+    <h1>Invoice #@Model.InvoiceNumber</h1>
+    <p>Customer: @Model.CustomerName</p>
+    <p>Date: @Model.Date.ToString("yyyy-MM-dd")</p>
     <table>
         <tr><th>Item</th><th>Price</th></tr>
-        {{#each Items}}
-        <tr><td>{{Name}}</td><td>${{Price:F2}}</td></tr>
-        {{/each}}
+        @foreach(var item in Model.Items)
+        {
+            <tr><td>@item.Name</td><td>$@item.Price.ToString("F2")</td></tr>
+        }
     </table>
-    <p><strong>Total: ${{Total:F2}}</strong></p>
+    <p><strong>Total: $@Model.Total.ToString("F2")</strong></p>
 </body>
 </html>";
 
@@ -122,7 +123,8 @@ services.AddHtml2Pdf(options =>
 {
     options.MinInstances = 1;
     options.MaxInstances = 5;
-    options.TimeoutMs = 30000;
+    options.MaxLifetimeMinutes = 60;
+    options.AcquireTimeoutSeconds = 30;
 });
 ```
 
@@ -141,14 +143,14 @@ if (!result.Success)
 }
 else
 {
-    Console.WriteLine($"PDF generated successfully in {result.ExecutionTime.TotalMilliseconds}ms");
+    Console.WriteLine($"PDF generated successfully in {result.Duration.TotalMilliseconds}ms");
     Console.WriteLine($"PDF size: {result.Data.Length} bytes");
 }
 ```
 
 ## Features
 
-- **Template Support**: Use Razor/Handlebars syntax for dynamic content
+- **Template Support**: Use RazorLight syntax for dynamic content
 - **High Performance**: Browser pool optimization for concurrent operations
 - **Flexible Configuration**: Extensive PDF layout and styling options
 - **Diagnostics**: Built-in logging and performance monitoring

@@ -78,16 +78,17 @@ if (result.Success)
 var invoiceTemplate = @"
 <html>
 <body>
-    <h1>Invoice #{{InvoiceNumber}}</h1>
-    <p>Customer: {{CustomerName}}</p>
-    <p>Date: {{Date:yyyy-MM-dd}}</p>
+    <h1>Invoice #@Model.InvoiceNumber</h1>
+    <p>Customer: @Model.CustomerName</p>
+    <p>Date: @Model.Date.ToString("yyyy-MM-dd")</p>
     <table>
         <tr><th>Item</th><th>Price</th></tr>
-        {{#each Items}}
-        <tr><td>{{Name}}</td><td>${{Price:F2}}</td></tr>
-        {{/each}}
+        @foreach(var item in Model.Items)
+        {
+            <tr><td>@item.Name</td><td>$@item.Price.ToString("F2")</td></tr>
+        }
     </table>
-    <p><strong>Total: ${{Total:F2}}</strong></p>
+    <p><strong>Total: $@Model.Total.ToString("F2")</strong></p>
 </body>
 </html>";
 
@@ -146,8 +147,9 @@ services.AddHtml2Pdf(options =>
 {
     options.MinInstances = 1;        // Minimum browser instances
     options.MaxInstances = 5;        // Maximum browser instances
-    options.MaxUsageCount = 100;     // Recycle after 100 uses
-    options.TimeoutMs = 30000;       // 30 second timeout
+    options.MaxLifetimeMinutes = 60; // Max lifetime in minutes
+    options.AcquireTimeoutSeconds = 30; // Timeout to acquire instance
+});
 });
 ```
 
@@ -214,7 +216,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-_Made with ❤️ by [Kevin Martinez](https://github.com/NastMz)_
+**Made with ❤️ by [Kevin Martinez](https://github.com/NastMz)**
 {
 Console.WriteLine($"Error: {result.ErrorMessage}");
 }
@@ -253,7 +255,9 @@ services.AddHtml2Pdf(options =>
     options.MinInstances = 2;
     options.MaxInstances = 10;
     options.MaxLifetimeMinutes = 60;
+    options.AcquireTimeoutSeconds = 30;
     options.Headless = true;
+    options.AdditionalArgs = new[] { "--no-sandbox", "--disable-dev-shm-usage" };
 });
 
 var serviceProvider = services.BuildServiceProvider();
@@ -485,7 +489,7 @@ else
 
 ## Advanced Configuration
 
-### Browser Pool
+### Browser Pool Settings
 
 ```csharp
 services.AddHtml2Pdf(options =>

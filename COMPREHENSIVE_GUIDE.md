@@ -15,11 +15,13 @@
 
 ## Introduction
 
-Nast.Html2Pdf is a powerful .NET library that converts HTML content to PDF documents. It combines the flexibility of Razor templates with the reliability of PuppeteerSharp for high-quality PDF generation.
+Nast.Html2Pdf is a powerful .NET library that converts HTML content to PDF documents. It combines the flexibility of RazorLight templates with the reliability of PuppeteerSharp for high-quality PDF generation.
+
+**Important Note**: This library uses **RazorLight** for template processing, not Handlebars. All template examples in this guide use RazorLight/Razor syntax (`@Model.Property`, `@foreach`, `@if`, etc.).
 
 ### Key Features
 
-- **Template-based PDF generation** using Razor syntax
+- **Template-based PDF generation** using RazorLight syntax
 - **Browser pool optimization** for high-performance scenarios
 - **Flexible configuration** for PDF layout and styling
 - **Complete dependency injection support**
@@ -101,7 +103,7 @@ var result = await pdfService.GeneratePdfFromHtmlAsync(html);
 if (result.Success)
 {
     await File.WriteAllBytesAsync("my-first-pdf.pdf", result.Data);
-    Console.WriteLine($"PDF generated successfully in {result.ExecutionTime.TotalMilliseconds}ms");
+    Console.WriteLine($"PDF generated successfully in {result.Duration.TotalMilliseconds}ms");
 }
 else
 {
@@ -112,19 +114,20 @@ else
 ### 3. Using Templates with Data
 
 ```csharp
-// Razor template
+// RazorLight template
 var template = @"
 <!DOCTYPE html>
 <html>
 <body>
-    <h1>Welcome, {{CustomerName}}!</h1>
-    <p>Your order #{{OrderNumber}} has been confirmed.</p>
+    <h1>Welcome, @Model.CustomerName!</h1>
+    <p>Your order #@Model.OrderNumber has been confirmed.</p>
     <ul>
-        {{#each Items}}
-        <li>{{Name}} - ${{Price:F2}}</li>
-        {{/each}}
+        @foreach(var item in Model.Items)
+        {
+            <li>@item.Name - $@item.Price.ToString("F2")</li>
+        }
     </ul>
-    <p><strong>Total: ${{Total:F2}}</strong></p>
+    <p><strong>Total: $@Model.Total.ToString("F2")</strong></p>
 </body>
 </html>";
 
@@ -153,13 +156,10 @@ services.AddHtml2Pdf(options =>
 {
     options.MinInstances = 1;        // Minimum browser instances
     options.MaxInstances = 5;        // Maximum browser instances
-    options.MaxUsageCount = 100;     // Max uses per browser instance
-    options.TimeoutMs = 30000;       // Browser timeout in milliseconds
-    options.LaunchOptions = new()    // PuppeteerSharp launch options
-    {
-        Headless = true,
-        Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
-    };
+    options.MaxLifetimeMinutes = 60; // Max lifetime in minutes
+    options.AcquireTimeoutSeconds = 30; // Timeout to acquire instance
+    options.Headless = true;         // Run in headless mode
+    options.AdditionalArgs = new[] { "--no-sandbox", "--disable-dev-shm-usage" };
 });
 ```
 
@@ -244,20 +244,20 @@ public class InvoiceService
     <div class='header'>
         <div>
             <h1>INVOICE</h1>
-            <p>Invoice #: {{InvoiceNumber}}</p>
-            <p>Date: {{Date:yyyy-MM-dd}}</p>
+            <p>Invoice #: @Model.InvoiceNumber</p>
+            <p>Date: @Model.Date.ToString("yyyy-MM-dd")</p>
         </div>
         <div class='company-info'>
-            <h2>{{Company.Name}}</h2>
-            <p>{{Company.Address}}</p>
-            <p>{{Company.Phone}}</p>
+            <h2>@Model.Company.Name</h2>
+            <p>@Model.Company.Address</p>
+            <p>@Model.Company.Phone</p>
         </div>
     </div>
 
     <div>
         <h3>Bill To:</h3>
-        <p>{{Customer.Name}}</p>
-        <p>{{Customer.Address}}</p>
+        <p>@Model.Customer.Name</p>
+        <p>@Model.Customer.Address</p>
     </div>
 
     <table class='items-table'>
@@ -270,21 +270,22 @@ public class InvoiceService
             </tr>
         </thead>
         <tbody>
-            {{#each Items}}
-            <tr>
-                <td>{{Description}}</td>
-                <td>{{Quantity}}</td>
-                <td>${{Price:F2}}</td>
-                <td>${{Total:F2}}</td>
-            </tr>
-            {{/each}}
+            @foreach(var item in Model.Items)
+            {
+                <tr>
+                    <td>@item.Description</td>
+                    <td>@item.Quantity</td>
+                    <td>$@item.Price.ToString("F2")</td>
+                    <td>$@item.Total.ToString("F2")</td>
+                </tr>
+            }
         </tbody>
     </table>
 
     <div class='total'>
-        <p>Subtotal: ${{Subtotal:F2}}</p>
-        <p>Tax: ${{Tax:F2}}</p>
-        <p>Total: ${{Total:F2}}</p>
+        <p>Subtotal: $@Model.Subtotal.ToString("F2")</p>
+        <p>Tax: $@Model.Tax.ToString("F2")</p>
+        <p>Total: $@Model.Total.ToString("F2")</p>
     </div>
 </body>
 </html>";
@@ -295,7 +296,7 @@ public class InvoiceService
             PrintBackground = true,
             Header = new PdfHeaderFooter
             {
-                Template = "<div style='font-size: 10px; text-align: center;'>{{Company.Name}} - Invoice {{InvoiceNumber}}</div>",
+                Template = "<div style='font-size: 10px; text-align: center;'>@Model.Company.Name - Invoice @Model.InvoiceNumber</div>",
                 Height = "1cm"
             },
             Footer = new PdfHeaderFooter
@@ -340,15 +341,15 @@ public async Task<byte[]> GenerateReportWithChartsAsync(ReportData data)
     <div class='summary-grid'>
         <div class='summary-card'>
             <h3>Total Sales</h3>
-            <p style='font-size: 24px; font-weight: bold;'>${{TotalSales:N0}}</p>
+            <p style='font-size: 24px; font-weight: bold;'>$@Model.TotalSales.ToString("N0")</p>
         </div>
         <div class='summary-card'>
             <h3>Orders</h3>
-            <p style='font-size: 24px; font-weight: bold;'>{{TotalOrders}}</p>
+            <p style='font-size: 24px; font-weight: bold;'>@Model.TotalOrders</p>
         </div>
         <div class='summary-card'>
             <h3>Growth</h3>
-            <p style='font-size: 24px; font-weight: bold;'>{{Growth:P1}}</p>
+            <p style='font-size: 24px; font-weight: bold;'>@Model.Growth.ToString("P1")</p>
         </div>
     </div>
 
@@ -361,10 +362,10 @@ public async Task<byte[]> GenerateReportWithChartsAsync(ReportData data)
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: [{{#each MonthlyData}}'{{Month}}'{{#unless @last}},{{/unless}}{{/each}}],
+                labels: [@foreach(var month in Model.MonthlyData) { <text>'@month.Month'@(month != Model.MonthlyData.Last() ? "," : "")</text> }],
                 datasets: [{
                     label: 'Sales',
-                    data: [{{#each MonthlyData}}{{Sales}}{{#unless @last}},{{/unless}}{{/each}}],
+                    data: [@foreach(var data in Model.MonthlyData) { <text>@data.Sales@(data != Model.MonthlyData.Last() ? "," : "")</text> }],
                     borderColor: 'rgb(75, 192, 192)',
                     tension: 0.1
                 }]
@@ -420,9 +421,9 @@ var pdfOptions = new PdfOptions
     {
         Template = @"
             <div style='font-size: 10px; width: 100%; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;'>
-                <span style='float: left;'>{{Company.Name}}</span>
-                <span>{{DocumentTitle}}</span>
-                <span style='float: right;'>{{Date:yyyy-MM-dd}}</span>
+                <span style='float: left;'>@Model.Company.Name</span>
+                <span>@Model.DocumentTitle</span>
+                <span style='float: right;'>@Model.Date.ToString("yyyy-MM-dd")</span>
             </div>",
         Height = "1.5cm"
     },
@@ -432,39 +433,45 @@ var pdfOptions = new PdfOptions
             <div style='font-size: 10px; width: 100%; text-align: center; border-top: 1px solid #ccc; padding-top: 5px;'>
                 <span style='float: left;'>Confidential</span>
                 <span>Page <span class='pageNumber'></span> of <span class='totalPages'></span></span>
-                <span style='float: right;'>Generated: {{currentDate}}</span>
+                <span style='float: right;'>Generated: @DateTime.Now</span>
             </div>",
         Height = "1.5cm"
     }
 };
 ```
 
-### Conditional Content with Handlebars
+### Conditional Content with RazorLight
 
 ```csharp
 var template = @"
-{{#if IsUrgent}}
+@if(Model.IsUrgent)
+{
     <div style='background: red; color: white; padding: 10px; margin-bottom: 20px;'>
         URGENT: This document requires immediate attention!
     </div>
-{{/if}}
+}
 
-{{#each Items}}
+@foreach(var item in Model.Items)
+{
     <div class='item'>
-        <h3>{{Name}}</h3>
-        <p>{{Description}}</p>
-        {{#if OnSale}}
-            <span class='sale-price'>${{SalePrice:F2}}</span>
-            <span class='original-price'>${{OriginalPrice:F2}}</span>
-        {{else}}
-            <span class='price'>${{Price:F2}}</span>
-        {{/if}}
+        <h3>@item.Name</h3>
+        <p>@item.Description</p>
+        @if(item.OnSale)
+        {
+            <span class='sale-price'>$@item.SalePrice.ToString("F2")</span>
+            <span class='original-price'>$@item.OriginalPrice.ToString("F2")</span>
+        }
+        else
+        {
+            <span class='price'>$@item.Price.ToString("F2")</span>
+        }
     </div>
-{{/each}}
+}
 
-{{#unless Items}}
+@if(!Model.Items.Any())
+{
     <p>No items available.</p>
-{{/unless}}
+}
 ";
 ```
 
@@ -494,7 +501,7 @@ public async Task<Dictionary<string, byte[]>> GenerateMultiplePdfsAsync(
 
 ## Performance Optimization
 
-### Browser Pool Configuration
+### Browser Pool Settings
 
 ```csharp
 // For high-volume scenarios
@@ -502,8 +509,8 @@ services.AddHtml2Pdf(options =>
 {
     options.MinInstances = 3;        // Keep 3 browsers warm
     options.MaxInstances = 10;       // Allow up to 10 concurrent browsers
-    options.MaxUsageCount = 50;      // Recycle browsers after 50 uses
-    options.TimeoutMs = 15000;       // Shorter timeout for faster failure
+    options.MaxLifetimeMinutes = 30; // Recycle browsers after 30 minutes
+    options.AcquireTimeoutSeconds = 15; // Shorter timeout for faster failure
 });
 ```
 
@@ -606,7 +613,7 @@ services.AddLogging(builder =>
 
 // Access diagnostic information
 var result = await pdfService.GeneratePdfAsync(template, data);
-Console.WriteLine($"Execution time: {result.ExecutionTime}");
+Console.WriteLine($"Execution time: {result.Duration}");
 Console.WriteLine($"Success: {result.Success}");
 if (!result.Success)
 {
@@ -642,7 +649,7 @@ public class PdfResult
     public byte[] Data { get; set; }
     public string? ErrorMessage { get; set; }
     public Exception? Exception { get; set; }
-    public TimeSpan ExecutionTime { get; set; }
+    public TimeSpan Duration { get; set; }
 }
 ```
 
@@ -693,9 +700,9 @@ public class PdfResult
 
 ## Support and Resources
 
-- **GitHub Repository**: https://github.com/NastMz/Html2Pdf
-- **NuGet Package**: https://www.nuget.org/packages/Nast.Html2Pdf
-- **Issue Tracker**: https://github.com/NastMz/Html2Pdf/issues
+- **GitHub Repository**: [Html2Pdf](https://github.com/NastMz/Html2Pdf)
+- **NuGet Package**: [Nast.Html2Pdf](https://www.nuget.org/packages/Nast.Html2Pdf)
+- **Issue Tracker**: [Issues](https://github.com/NastMz/Html2Pdf/issues)
 - **License**: MIT
 
 For additional help, please create an issue on the GitHub repository with:
@@ -708,4 +715,4 @@ For additional help, please create an issue on the GitHub repository with:
 
 ---
 
-_Last updated: January 2025_
+**Last updated**: January 2025
