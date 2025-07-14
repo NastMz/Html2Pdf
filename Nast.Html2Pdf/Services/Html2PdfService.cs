@@ -63,7 +63,10 @@ namespace Nast.Html2Pdf.Services
                 {
                     stopwatch.Stop();
                     performanceMetrics.TotalTime = stopwatch.Elapsed;
-                    _diagnostics.LogDetailedError(operationId, htmlResult.Exception!, "HTML Generation", new { Template = template, Model = model });
+                    if (htmlResult.Exception != null)
+                    {
+                        _diagnostics.LogDetailedError(operationId, htmlResult.Exception, "HTML Generation", new { Template = template, Model = model });
+                    }
                     return PdfResult.CreateError($"HTML generation failed: {htmlResult.ErrorMessage}",
                         htmlResult.Exception, stopwatch.Elapsed);
                 }
@@ -83,7 +86,10 @@ namespace Nast.Html2Pdf.Services
                 {
                     stopwatch.Stop();
                     performanceMetrics.TotalTime = stopwatch.Elapsed;
-                    _diagnostics.LogDetailedError(operationId, pdfResult.Exception!, "PDF Conversion", new { Html = htmlResult.Html, Options = pdfOptions });
+                    if (pdfResult.Exception != null)
+                    {
+                        _diagnostics.LogDetailedError(operationId, pdfResult.Exception, "PDF Conversion", new { Html = htmlResult.Html, Options = pdfOptions });
+                    }
                     return PdfResult.CreateError($"PDF conversion failed: {pdfResult.ErrorMessage}",
                         pdfResult.Exception, stopwatch.Elapsed);
                 }
@@ -187,7 +193,12 @@ namespace Nast.Html2Pdf.Services
                 stopwatch.Stop();
                 _logger.LogDebug("PDF generation from HTML completed in {Duration}ms", stopwatch.ElapsedMilliseconds);
 
-                return PdfResult.CreateSuccess(pdfResult.Data!, stopwatch.Elapsed);
+                if (pdfResult.Data == null)
+                {
+                    return PdfResult.CreateError("PDF conversion succeeded but data is null", null, stopwatch.Elapsed);
+                }
+
+                return PdfResult.CreateSuccess(pdfResult.Data, stopwatch.Elapsed);
             }
             catch (Exception ex)
             {
@@ -222,7 +233,12 @@ namespace Nast.Html2Pdf.Services
                 stopwatch.Stop();
                 _logger.LogDebug("PDF generation from URL completed in {Duration}ms", stopwatch.ElapsedMilliseconds);
 
-                return PdfResult.CreateSuccess(pdfResult.Data!, stopwatch.Elapsed);
+                if (pdfResult.Data == null)
+                {
+                    return PdfResult.CreateError("PDF conversion succeeded but data is null", null, stopwatch.Elapsed);
+                }
+
+                return PdfResult.CreateSuccess(pdfResult.Data, stopwatch.Elapsed);
             }
             catch (Exception ex)
             {
