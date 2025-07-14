@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nast.Html2Pdf.Models;
+using Nast.Html2Pdf.Services;
 using System.Text;
 using Xunit.Abstractions;
 
@@ -9,6 +10,7 @@ namespace Nast.Html2Pdf.Tests.Functional
     /// <summary>
     /// Functional tests for real-world scenarios like invoices, reports, and letters
     /// </summary>
+    [Collection("TestCleanup")]
     public class RealWorldScenariosTests : IDisposable
     {
         private readonly ServiceProvider _serviceProvider;
@@ -23,7 +25,7 @@ namespace Nast.Html2Pdf.Tests.Functional
             {
                 builder.AddConsole();
                 builder.AddDebug();
-                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.SetMinimumLevel(LogLevel.Warning);
             });
             services.AddHtml2Pdf(options =>
             {
@@ -579,7 +581,7 @@ Sincerely,",
 <html>
 <head>
     <meta charset='UTF-8'>
-    <title>{{Title}}</title>
+    <title>@Model.Title</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
         .document-container { max-width: 8.5in; margin: 0 auto; }
@@ -600,28 +602,30 @@ Sincerely,",
 <body>
     <div class='document-container'>
         <div class='title-page'>
-            <div class='document-title'>{{Title}}</div>
+            <div class='document-title'>@Model.Title</div>
             <div class='document-subtitle'>Comprehensive Analysis and Recommendations</div>
         </div>
         
         <div class='table-of-contents'>
             <div class='toc-title'>Table of Contents</div>
-            {{#each Sections}}
+            @for (int index = 0; index < Model.Sections.Count; index++)
+            {
             <div class='toc-item'>
-                <a href='#section-{{@index}}'>{{@index 1}}. {{Title}}</a>
-                <span class='page-number'>{{PageNumber}}</span>
+                <a href='#section-@index'>@(index + 1). @Model.Sections[index].Title</a>
+                <span class='page-number'>@Model.Sections[index].PageNumber</span>
             </div>
-            {{/each}}
+            }
         </div>
         
-        {{#each Sections}}
-        <div class='section' id='section-{{@index}}'>
-            <div class='section-title'>{{@index 1}}. {{Title}}</div>
+        @for (int index = 0; index < Model.Sections.Count; index++)
+        {
+        <div class='section' id='section-@index'>
+            <div class='section-title'>@(index + 1). @Model.Sections[index].Title</div>
             <div class='section-content'>
-                {{Content}}
+                @Model.Sections[index].Content
             </div>
         </div>
-        {{/each}}
+        }
     </div>
 </body>
 </html>";
@@ -724,6 +728,17 @@ Sincerely,",
         {
             if (disposing)
             {
+                // Force close all browsers before disposing the service provider
+                try
+                {
+                    var browserPool = _serviceProvider?.GetService<IBrowserPool>() as BrowserPool;
+                    browserPool?.ForceCloseAllBrowsersAsync().Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error closing browser pool: {ex.Message}");
+                }
+                
                 _serviceProvider?.Dispose();
             }
         }

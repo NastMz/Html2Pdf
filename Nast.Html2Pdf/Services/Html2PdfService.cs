@@ -161,10 +161,13 @@ namespace Nast.Html2Pdf.Services
 
         public async Task<PdfResult> GeneratePdfFromHtmlAsync(string html, PdfOptions? pdfOptions = null)
         {
-            if (string.IsNullOrEmpty(html))
+            if (html == null)
             {
-                return PdfResult.CreateError("HTML cannot be null or empty");
+                return PdfResult.CreateError("HTML cannot be null");
             }
+
+            // Allow empty HTML as it should generate a valid empty PDF
+            html = string.IsNullOrEmpty(html) ? "<html><body></body></html>" : html;
 
             var stopwatch = Stopwatch.StartNew();
 

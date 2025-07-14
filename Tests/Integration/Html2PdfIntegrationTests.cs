@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Nast.Html2Pdf.Services;
 
 namespace Nast.Html2Pdf.Tests.Integration
 {
+    [Collection("TestCleanup")]
     public class Html2PdfIntegrationTests : IDisposable
     {
         private readonly ServiceProvider _serviceProvider;
@@ -11,7 +13,7 @@ namespace Nast.Html2Pdf.Tests.Integration
         public Html2PdfIntegrationTests()
         {
             var services = new ServiceCollection();
-            services.AddLogging(builder => builder.AddConsole());
+            services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
             services.AddHtml2Pdf(options =>
             {
                 options.MinInstances = 1;
@@ -280,6 +282,17 @@ namespace Nast.Html2Pdf.Tests.Integration
         {
             if (disposing)
             {
+                // Force close all browsers before disposing the service provider
+                try
+                {
+                    var browserPool = _serviceProvider?.GetService<IBrowserPool>() as BrowserPool;
+                    browserPool?.ForceCloseAllBrowsersAsync().Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error closing browser pool: {ex.Message}");
+                }
+                
                 _serviceProvider?.Dispose();
             }
         }

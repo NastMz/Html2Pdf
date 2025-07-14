@@ -149,8 +149,8 @@ namespace Nast.Html2Pdf.Services
                     }
                 }
 
-                // Create new page
-                var page = await CreateNewPageAsync();
+                // Create new page with retry logic
+                var page = await CreateNewPageWithRetryAsync();
                 page.MarkAsInUse();
 
                 _logger.LogDebug("Created new browser page in {Duration}ms", stopwatch.ElapsedMilliseconds);
@@ -194,9 +194,37 @@ namespace Nast.Html2Pdf.Services
             }
         }
 
-        private async Task<PooledPage> CreateNewPageAsync()
+        private async Task<PooledPage> CreateNewPageWithRetryAsync()
         {
-            if (_browser == null)
+            const int maxRetries = 3;
+            Exception? lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    return await TryCreatePageAsync();
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    _logger.LogWarning(ex, "Failed to create browser page on attempt {Attempt}/{MaxRetries}", 
+                        attempt, maxRetries);
+
+                    if (attempt < maxRetries)
+                    {
+                        await CleanupBrowserForRetryAsync();
+                        await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt));
+                    }
+                }
+            }
+
+            throw new BrowserPoolException($"Failed to create browser page after {maxRetries} attempts", lastException!);
+        }
+
+        private async Task<PooledPage> TryCreatePageAsync()
+        {
+            if (_browser == null || _browser.IsClosed)
             {
                 await InitializeBrowserAsync();
             }
@@ -208,22 +236,67 @@ namespace Nast.Html2Pdf.Services
             return pooledPage;
         }
 
+        private async Task CleanupBrowserForRetryAsync()
+        {
+            try
+            {
+                if (_browser != null && !_browser.IsClosed)
+                {
+                    await _browser.CloseAsync();
+                }
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogWarning(cleanupEx, "Error cleaning up browser during retry");
+            }
+            finally
+            {
+                _browser = null;
+            }
+        }
+
         private async Task InitializeBrowserAsync()
         {
             _logger.LogDebug("Initializing browser");
 
-            // Ensure browser is downloaded (auto-download on first use)
-            await new BrowserFetcher().DownloadAsync();
-
-            var launchOptions = new LaunchOptions
+            try
             {
-                Headless = _options.Headless,
-                Args = _options.AdditionalArgs
-            };
+                // Ensure browser is downloaded (auto-download on first use)
+                var browserFetcher = new BrowserFetcher();
+                await browserFetcher.DownloadAsync();
 
-            _browser = await Puppeteer.LaunchAsync(launchOptions);
+                var defaultArgs = new List<string>
+                {
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-web-security",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-ipc-flooding-protection",
+                    "--disable-blink-features=AutomationControlled"
+                };
 
-            _logger.LogDebug("Browser initialized successfully");
+                var allArgs = defaultArgs.Concat(_options.AdditionalArgs).ToArray();
+
+                var launchOptions = new LaunchOptions
+                {
+                    Headless = _options.Headless,
+                    Args = allArgs,
+                    Timeout = 30000 // 30 second timeout
+                };
+
+                _browser = await Puppeteer.LaunchAsync(launchOptions);
+
+                _logger.LogDebug("Browser initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize browser");
+                throw new BrowserPoolException("Failed to initialize browser", ex);
+            }
         }
 
         private bool IsPageValid(PooledPage page)
@@ -299,32 +372,73 @@ namespace Nast.Html2Pdf.Services
         {
             try
             {
-                if (_browser != null)
-                {
-                    await _browser.CloseAsync();
-                    _browser = null;
-                }
-
-                // Force kill any remaining chromium processes
-                var processes = Process.GetProcessesByName("chrome");
-                foreach (var process in processes)
-                {
-                    try
-                    {
-                        if (!process.HasExited)
-                        {
-                            process.Kill();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error killing chrome process {ProcessId}", process.Id);
-                    }
-                }
+                await CloseAllPagesAsync();
+                await CloseBrowserAsync();
+                await ForceKillChromeProcessesAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during force close of browsers");
+            }
+        }
+
+        private async Task CloseAllPagesAsync()
+        {
+            foreach (var page in _allPages.Values)
+            {
+                await ClosePageAsync(page);
+            }
+            _allPages.Clear();
+            
+            // Clear the available pages queue
+            while (_availablePages.TryDequeue(out var _))
+            {
+                // Intentionally empty - just clearing the queue
+            }
+        }
+
+        private async Task CloseBrowserAsync()
+        {
+            if (_browser != null && !_browser.IsClosed)
+            {
+                await _browser.CloseAsync();
+                _browser = null;
+            }
+        }
+
+        private async Task ForceKillChromeProcessesAsync()
+        {
+            await Task.Run(() =>
+            {
+                var chromeProcessNames = new[] { "chrome", "chromium", "chromium-browser" };
+                foreach (var processName in chromeProcessNames)
+                {
+                    KillProcessesByName(processName);
+                }
+            });
+        }
+
+        private void KillProcessesByName(string processName)
+        {
+            var processes = Process.GetProcessesByName(processName);
+            foreach (var process in processes)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill();
+                        process.WaitForExit(5000); // Wait up to 5 seconds
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error killing {ProcessName} process {ProcessId}", processName, process.Id);
+                }
+                finally
+                {
+                    process.Dispose();
+                }
             }
         }
 
@@ -341,44 +455,50 @@ namespace Nast.Html2Pdf.Services
                 _disposed = true;
 
                 _cleanupTimer?.Dispose();
-                _semaphore?.Dispose();
 
                 // Close all pages and the browser - wait for completion
                 try
                 {
                     var disposeTask = Task.Run(async () =>
                     {
-                        try
-                        {
-                            foreach (var page in _allPages.Values)
-                            {
-                                await ClosePageAsync(page);
-                            }
-
-                            if (_browser != null)
-                            {
-                                await _browser.CloseAsync();
-                                _browser = null;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error disposing browser pool");
-                        }
+                        await ForceCloseAllBrowsersAsync();
                     });
 
                     // Wait for disposal to complete with timeout
-                    if (!disposeTask.Wait(TimeSpan.FromSeconds(10)))
+                    if (!disposeTask.Wait(TimeSpan.FromSeconds(5)))
                     {
-                        _logger.LogWarning("Browser pool disposal timed out");
+                        _logger.LogWarning("Browser pool disposal timed out, forcing cleanup");
+                        // Force kill any remaining processes
+                        ForceKillChromeProcessesSync();
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error during browser pool disposal");
+                    ForceKillChromeProcessesSync();
+                }
+                finally
+                {
+                    _semaphore?.Dispose();
                 }
 
                 _logger.LogDebug("Browser pool disposed");
+            }
+        }
+
+        private void ForceKillChromeProcessesSync()
+        {
+            try
+            {
+                var chromeProcessNames = new[] { "chrome", "chromium", "chromium-browser" };
+                foreach (var processName in chromeProcessNames)
+                {
+                    KillProcessesByName(processName);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error force killing chrome processes");
             }
         }
 
@@ -392,25 +512,26 @@ namespace Nast.Html2Pdf.Services
                 {
                     await _cleanupTimer.DisposeAsync();
                 }
-                _semaphore?.Dispose();
 
-                // Close all pages and the browser asynchronously
+                // Close all pages and the browser asynchronously with timeout
                 try
                 {
-                    foreach (var page in _allPages.Values)
-                    {
-                        await ClosePageAsync(page);
-                    }
-
-                    if (_browser != null)
-                    {
-                        await _browser.CloseAsync();
-                        _browser = null;
-                    }
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await ForceCloseAllBrowsersAsync().WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogWarning(ex, "Browser pool async disposal timed out, forcing cleanup");
+                    ForceKillChromeProcessesSync();
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error disposing browser pool asynchronously");
+                    ForceKillChromeProcessesSync();
+                }
+                finally
+                {
+                    _semaphore?.Dispose();
                 }
 
                 _logger.LogDebug("Browser pool disposed asynchronously");

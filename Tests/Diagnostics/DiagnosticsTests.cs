@@ -12,6 +12,7 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
     /// <summary>
     /// Tests for logging and diagnostics functionality
     /// </summary>
+    [Collection("TestCleanup")]
     public class DiagnosticsTests : IDisposable, IAsyncDisposable
     {
         private readonly ServiceProvider _serviceProvider;
@@ -28,7 +29,7 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
             services.AddLogging(builder =>
             {
                 builder.AddProvider(new TestLoggerProvider(_logMessages));
-                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.SetMinimumLevel(LogLevel.Warning);
             });
             
             services.AddHtml2Pdf(options =>
