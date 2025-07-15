@@ -201,6 +201,12 @@ namespace Nast.Html2Pdf.Services
 
                 // Convertir directamente a PDF
                 var pdfResult = await _pdfConverter.ConvertAsync(html, pdfOptions);
+                if (pdfResult == null)
+                {
+                    stopwatch.Stop();
+                    return PdfResult.CreateError("PDF converter returned null result", null, stopwatch.Elapsed);
+                }
+                
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
@@ -244,6 +250,12 @@ namespace Nast.Html2Pdf.Services
 
                 // Convertir directamente a PDF
                 var pdfResult = await _pdfConverter.ConvertFromUrlAsync(url, pdfOptions);
+                if (pdfResult == null)
+                {
+                    stopwatch.Stop();
+                    return PdfResult.CreateError("PDF converter returned null result", null, stopwatch.Elapsed);
+                }
+                
                 if (!pdfResult.Success)
                 {
                     stopwatch.Stop();
