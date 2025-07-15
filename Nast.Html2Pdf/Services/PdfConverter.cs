@@ -39,16 +39,26 @@ namespace Nast.Html2Pdf.Services
 
                     using var page = await _browserPool.GetPageAsync();
 
-                    // Check if page is null
+                    // Check if page is null or invalid
                     if (page?.Page == null)
                     {
                         throw new InvalidOperationException("Failed to get a valid page from browser pool");
                     }
 
+                    if (page.Page.IsClosed)
+                    {
+                        throw new InvalidOperationException("Page is already closed");
+                    }
+
                     // Configure the page
                     await ConfigurePageAsync(page.Page, options);
 
-                    // Load HTML
+                    // Load HTML with additional validation
+                    if (page.Page.IsClosed)
+                    {
+                        throw new InvalidOperationException("Page was closed before setting content");
+                    }
+
                     await page.Page.SetContentAsync(html, new NavigationOptions
                     {
                         WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
@@ -100,7 +110,10 @@ namespace Nast.Html2Pdf.Services
                    ex.Message.Contains("Protocol error") ||
                    ex.Message.Contains("remote party closed") ||
                    ex.Message.Contains("Object reference not set to an instance of an object") ||
-                   ex is NullReferenceException;
+                   ex.Message.Contains("Page was closed") ||
+                   ex.Message.Contains("Page is already closed") ||
+                   ex is NullReferenceException ||
+                   ex is InvalidOperationException;
         }
 
         public async Task<PdfResult> ConvertFromUrlAsync(string url, ModelPdfOptions? options = null)
@@ -119,16 +132,26 @@ namespace Nast.Html2Pdf.Services
 
                     using var page = await _browserPool.GetPageAsync();
 
-                    // Check if page is null
+                    // Check if page is null or invalid
                     if (page?.Page == null)
                     {
                         throw new InvalidOperationException("Failed to get a valid page from browser pool");
                     }
 
+                    if (page.Page.IsClosed)
+                    {
+                        throw new InvalidOperationException("Page is already closed");
+                    }
+
                     // Configure the page
                     await ConfigurePageAsync(page.Page, options);
 
-                    // Navigate to URL
+                    // Navigate to URL with additional validation
+                    if (page.Page.IsClosed)
+                    {
+                        throw new InvalidOperationException("Page was closed before navigation");
+                    }
+
                     await page.Page.GoToAsync(url, new NavigationOptions
                     {
                         WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },

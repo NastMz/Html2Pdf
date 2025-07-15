@@ -140,9 +140,18 @@ namespace Nast.Html2Pdf.Services
                 {
                     if (IsPageValid(availablePage))
                     {
-                        availablePage.MarkAsInUse();
-                        _logger.LogDebug("Reusing existing browser page");
-                        return availablePage;
+                        // Double-check validity before returning
+                        if (IsPageValid(availablePage))
+                        {
+                            availablePage.MarkAsInUse();
+                            _logger.LogDebug("Reusing existing browser page");
+                            return availablePage;
+                        }
+                        else
+                        {
+                            // Page became invalid between checks, close it
+                            await ClosePageAsync(availablePage);
+                        }
                     }
                     else
                     {
@@ -153,6 +162,14 @@ namespace Nast.Html2Pdf.Services
 
                 // Create new page with retry logic
                 var page = await CreateNewPageWithRetryAsync();
+                
+                // Final validation before returning
+                if (!IsPageValid(page))
+                {
+                    await ClosePageAsync(page);
+                    throw new BrowserPoolException("Created page is invalid");
+                }
+                
                 page.MarkAsInUse();
 
                 _logger.LogDebug("Created new browser page in {Duration}ms", stopwatch.ElapsedMilliseconds);
@@ -326,15 +343,27 @@ namespace Nast.Html2Pdf.Services
 
         private bool IsPageValid(PooledPage page)
         {
-            if (page.Page == null || page.Page.IsClosed)
-                return false;
+            try
+            {
+                if (page?.Page == null || page.Page.IsClosed)
+                    return false;
 
-            // Check if the page has exceeded its lifetime
-            var age = DateTime.UtcNow - page.CreatedAt;
-            if (age.TotalMinutes > _options.MaxLifetimeMinutes)
-                return false;
+                // Check if the page has exceeded its lifetime
+                var age = DateTime.UtcNow - page.CreatedAt;
+                if (age.TotalMinutes > _options.MaxLifetimeMinutes)
+                    return false;
 
-            return true;
+                // Additional validation: check if the page's browser is still valid
+                if (page.Page.Browser == null || page.Page.Browser.IsClosed)
+                    return false;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error validating page, considering it invalid");
+                return false;
+            }
         }
 
         private async Task ClosePageAsync(PooledPage page)
