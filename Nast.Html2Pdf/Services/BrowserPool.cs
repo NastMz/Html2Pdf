@@ -101,6 +101,7 @@ namespace Nast.Html2Pdf.Services
         private readonly ConcurrentQueue<PooledPage> _availablePages;
         private readonly ConcurrentDictionary<string, PooledPage> _allPages;
         private readonly SemaphoreSlim _semaphore;
+        private readonly SemaphoreSlim _browserInitSemaphore;
         private readonly Timer _cleanupTimer;
         private IBrowser? _browser;
         private bool _disposed;
@@ -112,6 +113,7 @@ namespace Nast.Html2Pdf.Services
             _availablePages = new ConcurrentQueue<PooledPage>();
             _allPages = new ConcurrentDictionary<string, PooledPage>();
             _semaphore = new SemaphoreSlim(_options.MaxInstances, _options.MaxInstances);
+            _browserInitSemaphore = new SemaphoreSlim(1, 1);
 
             // Timer for periodic cleanup
             _cleanupTimer = new Timer(CleanupExpiredPages, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
@@ -226,7 +228,19 @@ namespace Nast.Html2Pdf.Services
         {
             if (_browser == null || _browser.IsClosed)
             {
-                await InitializeBrowserAsync();
+                await _browserInitSemaphore.WaitAsync();
+                try
+                {
+                    // Double-check pattern
+                    if (_browser == null || _browser.IsClosed)
+                    {
+                        await InitializeBrowserAsync();
+                    }
+                }
+                finally
+                {
+                    _browserInitSemaphore.Release();
+                }
             }
 
             var page = await _browser!.NewPageAsync();
@@ -480,6 +494,7 @@ namespace Nast.Html2Pdf.Services
                 finally
                 {
                     _semaphore?.Dispose();
+                    _browserInitSemaphore?.Dispose();
                 }
 
                 _logger.LogDebug("Browser pool disposed");

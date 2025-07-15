@@ -28,43 +28,71 @@ namespace Nast.Html2Pdf.Services
             var stopwatch = Stopwatch.StartNew();
             options ??= new ModelPdfOptions();
 
-            try
+            const int maxRetries = 2;
+            Exception? lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                _logger.LogDebug("Starting PDF conversion from HTML");
-
-                using var page = await _browserPool.GetPageAsync();
-
-                // Configure the page
-                await ConfigurePageAsync(page.Page, options);
-
-                // Load HTML
-                await page.Page.SetContentAsync(html, new NavigationOptions
+                try
                 {
-                    WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
-                    Timeout = options.TimeoutMs
-                });
+                    _logger.LogDebug("Starting PDF conversion from HTML (attempt {Attempt})", attempt);
 
-                // Esperar a que se carguen las imágenes si está configurado
-                if (options.WaitForImages)
-                {
-                    await WaitForImagesAsync(page.Page);
+                    using var page = await _browserPool.GetPageAsync();
+
+                    // Configure the page
+                    await ConfigurePageAsync(page.Page, options);
+
+                    // Load HTML
+                    await page.Page.SetContentAsync(html, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
+                        Timeout = options.TimeoutMs
+                    });
+
+                    // Esperar a que se carguen las imágenes si está configurado
+                    if (options.WaitForImages)
+                    {
+                        await WaitForImagesAsync(page.Page);
+                    }
+
+                    // Generar PDF
+                    var pdfData = await GeneratePdfAsync(page.Page, options);
+
+                    stopwatch.Stop();
+                    _logger.LogDebug("PDF conversion completed in {Duration}ms, size: {Size} bytes",
+                        stopwatch.ElapsedMilliseconds, pdfData.Length);
+
+                    return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
                 }
-
-                // Generar PDF
-                var pdfData = await GeneratePdfAsync(page.Page, options);
-
-                stopwatch.Stop();
-                _logger.LogDebug("PDF conversion completed in {Duration}ms, size: {Size} bytes",
-                    stopwatch.ElapsedMilliseconds, pdfData.Length);
-
-                return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
+                catch (Exception ex) when (IsRetryableException(ex) && attempt < maxRetries)
+                {
+                    lastException = ex;
+                    _logger.LogWarning(ex, "Retryable error on attempt {Attempt}/{MaxRetries}: {Message}", 
+                        attempt, maxRetries, ex.Message);
+                    await Task.Delay(500 * attempt); // Exponential backoff
+                }
+                catch (Exception ex)
+                {
+                    stopwatch.Stop();
+                    _logger.LogError(ex, "Error converting HTML to PDF");
+                    return PdfResult.CreateError($"Error converting HTML to PDF: {ex.Message}", ex, stopwatch.Elapsed);
+                }
             }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                _logger.LogError(ex, "Error converting HTML to PDF");
-                return PdfResult.CreateError($"Error converting HTML to PDF: {ex.Message}", ex, stopwatch.Elapsed);
-            }
+
+            stopwatch.Stop();
+            _logger.LogError(lastException, "PDF conversion failed after {MaxRetries} attempts", maxRetries);
+            return PdfResult.CreateError($"Error converting HTML to PDF after {maxRetries} attempts: {lastException?.Message}", 
+                lastException, stopwatch.Elapsed);
+        }
+
+        private static bool IsRetryableException(Exception ex)
+        {
+            // Check for common PuppeteerSharp exceptions that indicate connection issues
+            return ex.Message.Contains("WebSocket") || 
+                   ex.Message.Contains("Target closed") || 
+                   ex.Message.Contains("Navigating frame was detached") ||
+                   ex.Message.Contains("Protocol error") ||
+                   ex.Message.Contains("remote party closed");
         }
 
         public async Task<PdfResult> ConvertFromUrlAsync(string url, ModelPdfOptions? options = null)
@@ -72,43 +100,61 @@ namespace Nast.Html2Pdf.Services
             var stopwatch = Stopwatch.StartNew();
             options ??= new ModelPdfOptions();
 
-            try
+            const int maxRetries = 2;
+            Exception? lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                _logger.LogDebug("Starting PDF conversion from URL: {Url}", url);
-
-                using var page = await _browserPool.GetPageAsync();
-
-                // Configure the page
-                await ConfigurePageAsync(page.Page, options);
-
-                // Navigate to URL
-                await page.Page.GoToAsync(url, new NavigationOptions
+                try
                 {
-                    WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
-                    Timeout = options.TimeoutMs
-                });
+                    _logger.LogDebug("Starting PDF conversion from URL: {Url} (attempt {Attempt})", url, attempt);
 
-                // Esperar a que se carguen las imágenes si está configurado
-                if (options.WaitForImages)
-                {
-                    await WaitForImagesAsync(page.Page);
+                    using var page = await _browserPool.GetPageAsync();
+
+                    // Configure the page
+                    await ConfigurePageAsync(page.Page, options);
+
+                    // Navigate to URL
+                    await page.Page.GoToAsync(url, new NavigationOptions
+                    {
+                        WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
+                        Timeout = options.TimeoutMs
+                    });
+
+                    // Esperar a que se carguen las imágenes si está configurado
+                    if (options.WaitForImages)
+                    {
+                        await WaitForImagesAsync(page.Page);
+                    }
+
+                    // Generar PDF
+                    var pdfData = await GeneratePdfAsync(page.Page, options);
+
+                    stopwatch.Stop();
+                    _logger.LogDebug("PDF conversion from URL completed in {Duration}ms, size: {Size} bytes",
+                        stopwatch.ElapsedMilliseconds, pdfData.Length);
+
+                    return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
                 }
-
-                // Generar PDF
-                var pdfData = await GeneratePdfAsync(page.Page, options);
-
-                stopwatch.Stop();
-                _logger.LogDebug("PDF conversion from URL completed in {Duration}ms, size: {Size} bytes",
-                    stopwatch.ElapsedMilliseconds, pdfData.Length);
-
-                return PdfResult.CreateSuccess(pdfData, stopwatch.Elapsed);
+                catch (Exception ex) when (IsRetryableException(ex) && attempt < maxRetries)
+                {
+                    lastException = ex;
+                    _logger.LogWarning(ex, "Retryable error on attempt {Attempt}/{MaxRetries}: {Message}", 
+                        attempt, maxRetries, ex.Message);
+                    await Task.Delay(500 * attempt); // Exponential backoff
+                }
+                catch (Exception ex)
+                {
+                    stopwatch.Stop();
+                    _logger.LogError(ex, "Error converting URL to PDF: {Url}", url);
+                    return PdfResult.CreateError($"Error converting URL to PDF: {ex.Message}", ex, stopwatch.Elapsed);
+                }
             }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                _logger.LogError(ex, "Error converting URL to PDF: {Url}", url);
-                return PdfResult.CreateError($"Error converting URL to PDF: {ex.Message}", ex, stopwatch.Elapsed);
-            }
+
+            stopwatch.Stop();
+            _logger.LogError(lastException, "PDF conversion from URL failed after {MaxRetries} attempts", maxRetries);
+            return PdfResult.CreateError($"Error converting URL to PDF after {maxRetries} attempts: {lastException?.Message}", 
+                lastException, stopwatch.Elapsed);
         }
 
         private static async Task ConfigurePageAsync(IPage page, ModelPdfOptions options)

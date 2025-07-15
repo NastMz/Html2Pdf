@@ -35,6 +35,9 @@ namespace Nast.Html2Pdf.Services
                 return PdfResult.CreateError("Template cannot be null or empty");
             }
 
+            // Ensure pdfOptions is not null
+            pdfOptions ??= new PdfOptions();
+
             using var operation = _diagnostics.BeginPdfGeneration("Template", new { 
                 TemplateLength = template.Length, 
                 HasModel = model != null,
@@ -55,6 +58,15 @@ namespace Nast.Html2Pdf.Services
                 var htmlResult = await _htmlGenerator.GenerateAsync(template, model, htmlOptions);
                 htmlStopwatch.Stop();
                 var htmlDuration = htmlStopwatch.Elapsed;
+                
+                // Check if htmlResult is null
+                if (htmlResult == null)
+                {
+                    stopwatch.Stop();
+                    performanceMetrics.TotalTime = stopwatch.Elapsed;
+                    _diagnostics.LogDetailedError(operationId, new InvalidOperationException("HTML generator returned null result"), "HTML Generation", new { Template = template, Model = model });
+                    return PdfResult.CreateError("HTML generation returned null result", null, stopwatch.Elapsed);
+                }
                 
                 performanceMetrics.HtmlGenerationTime = htmlDuration;
                 _diagnostics.LogTemplateProcessing(operationId, "Razor", template.Length, htmlDuration, htmlResult.Success);
@@ -128,6 +140,9 @@ namespace Nast.Html2Pdf.Services
         public async Task<PdfResult> GeneratePdfFromFileAsync(string templatePath, object? model = null,
             PdfOptions? pdfOptions = null, HtmlGenerationOptions? htmlOptions = null)
         {
+            // Ensure pdfOptions is not null
+            pdfOptions ??= new PdfOptions();
+            
             var stopwatch = Stopwatch.StartNew();
 
             try
@@ -174,6 +189,9 @@ namespace Nast.Html2Pdf.Services
 
             // Allow empty HTML as it should generate a valid empty PDF
             html = string.IsNullOrEmpty(html) ? "<html><body></body></html>" : html;
+            
+            // Ensure pdfOptions is not null
+            pdfOptions ??= new PdfOptions();
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -214,6 +232,9 @@ namespace Nast.Html2Pdf.Services
             {
                 return PdfResult.CreateError("URL cannot be null or empty");
             }
+
+            // Ensure pdfOptions is not null
+            pdfOptions ??= new PdfOptions();
 
             var stopwatch = Stopwatch.StartNew();
 
