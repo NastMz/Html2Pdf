@@ -39,6 +39,12 @@ namespace Nast.Html2Pdf.Services
 
                     using var page = await _browserPool.GetPageAsync();
 
+                    // Check if page is null
+                    if (page?.Page == null)
+                    {
+                        throw new InvalidOperationException("Failed to get a valid page from browser pool");
+                    }
+
                     // Configure the page
                     await ConfigurePageAsync(page.Page, options);
 
@@ -92,7 +98,9 @@ namespace Nast.Html2Pdf.Services
                    ex.Message.Contains("Target closed") || 
                    ex.Message.Contains("Navigating frame was detached") ||
                    ex.Message.Contains("Protocol error") ||
-                   ex.Message.Contains("remote party closed");
+                   ex.Message.Contains("remote party closed") ||
+                   ex.Message.Contains("Object reference not set to an instance of an object") ||
+                   ex is NullReferenceException;
         }
 
         public async Task<PdfResult> ConvertFromUrlAsync(string url, ModelPdfOptions? options = null)
@@ -110,6 +118,12 @@ namespace Nast.Html2Pdf.Services
                     _logger.LogDebug("Starting PDF conversion from URL: {Url} (attempt {Attempt})", url, attempt);
 
                     using var page = await _browserPool.GetPageAsync();
+
+                    // Check if page is null
+                    if (page?.Page == null)
+                    {
+                        throw new InvalidOperationException("Failed to get a valid page from browser pool");
+                    }
 
                     // Configure the page
                     await ConfigurePageAsync(page.Page, options);
@@ -159,17 +173,34 @@ namespace Nast.Html2Pdf.Services
 
         private static async Task ConfigurePageAsync(IPage page, ModelPdfOptions options)
         {
-            // Configure color scheme
-            await page.EmulateMediaTypeAsync(MediaType.Print);
-
-            // Configure viewport if necessary
-            if (options.Width.HasValue && options.Height.HasValue)
+            try
             {
-                await page.SetViewportAsync(new ViewPortOptions
+                // Configure color scheme
+                await page.EmulateMediaTypeAsync(MediaType.Print);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Session closed") || ex.Message.Contains("WebSocket"))
+            {
+                // Skip media type configuration if WebSocket connection is closed
+                // This can happen in CI environments with limited resources
+                System.Diagnostics.Debug.WriteLine($"Warning: Could not configure media type: {ex.Message}");
+            }
+
+            try
+            {
+                // Configure viewport if necessary
+                if (options.Width.HasValue && options.Height.HasValue)
                 {
-                    Width = (int)(options.Width.Value * 96),
-                    Height = (int)(options.Height.Value * 96)
-                });
+                    await page.SetViewportAsync(new ViewPortOptions
+                    {
+                        Width = (int)(options.Width.Value * 96),
+                        Height = (int)(options.Height.Value * 96)
+                    });
+                }
+            }
+            catch (Exception ex) when (ex.Message.Contains("Session closed") || ex.Message.Contains("WebSocket"))
+            {
+                // Skip viewport configuration if WebSocket connection is closed
+                System.Diagnostics.Debug.WriteLine($"Warning: Could not configure viewport: {ex.Message}");
             }
         }
 

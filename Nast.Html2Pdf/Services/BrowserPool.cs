@@ -290,7 +290,18 @@ namespace Nast.Html2Pdf.Services
                     "--disable-renderer-backgrounding",
                     "--disable-features=VizDisplayCompositor",
                     "--disable-ipc-flooding-protection",
-                    "--disable-blink-features=AutomationControlled"
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-gpu",
+                    "--disable-software-rasterizer",
+                    "--disable-extensions",
+                    "--disable-default-apps",
+                    "--disable-sync",
+                    "--disable-translate",
+                    "--no-first-run",
+                    "--ignore-certificate-errors",
+                    "--hide-scrollbars",
+                    "--mute-audio",
+                    "--autoplay-policy=user-gesture-required"
                 };
 
                 var allArgs = defaultArgs.Concat(_options.AdditionalArgs).ToArray();
@@ -315,7 +326,7 @@ namespace Nast.Html2Pdf.Services
 
         private bool IsPageValid(PooledPage page)
         {
-            if (page.Page.IsClosed)
+            if (page.Page == null || page.Page.IsClosed)
                 return false;
 
             // Check if the page has exceeded its lifetime
@@ -330,12 +341,15 @@ namespace Nast.Html2Pdf.Services
         {
             try
             {
-                if (!page.Page.IsClosed)
+                if (page.Page != null && !page.Page.IsClosed)
                 {
                     await page.Page.CloseAsync();
                 }
 
-                _allPages.TryRemove(page.Page.Url, out _);
+                if (page.Page != null)
+                {
+                    _allPages.TryRemove(page.Page.Url, out _);
+                }
                 _logger.LogDebug("Closed expired browser page");
             }
             catch (Exception ex)

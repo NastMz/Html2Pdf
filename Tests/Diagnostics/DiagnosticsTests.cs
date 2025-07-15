@@ -184,12 +184,23 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
             // Act
             var result = await _html2PdfService.GeneratePdfFromHtmlAsync(html);
             
+            // Debug output for CI
+            _output.WriteLine($"Result.Success: {result.Success}");
+            if (!result.Success)
+            {
+                _output.WriteLine($"Error Message: {result.ErrorMessage}");
+                if (result.Exception != null)
+                {
+                    _output.WriteLine($"Exception: {result.Exception}");
+                }
+            }
+            
             // Measure memory after
             var memoryAfter = GC.GetTotalMemory(false);
             var memoryUsed = memoryAfter - memoryBefore;
 
             // Assert
-            Assert.True(result.Success);
+            Assert.True(result.Success, $"PDF generation failed: {result.ErrorMessage}");
             Assert.NotNull(result.Data);
             Assert.True(result.Data.Length > 0);
             
@@ -300,8 +311,19 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
             // Act
             var result = await _html2PdfService.GeneratePdfAsync(template, data);
 
+            // Debug output for CI
+            _output.WriteLine($"Result.Success: {result.Success}");
+            if (!result.Success)
+            {
+                _output.WriteLine($"Error Message: {result.ErrorMessage}");
+                if (result.Exception != null)
+                {
+                    _output.WriteLine($"Exception: {result.Exception}");
+                }
+            }
+
             // Assert
-            Assert.True(result.Success);
+            Assert.True(result.Success, $"PDF generation failed: {result.ErrorMessage}");
             Assert.True(result.Duration.TotalMilliseconds > 0);
             Assert.NotNull(result.Data);
             
