@@ -186,7 +186,7 @@ namespace Nast.Html2Pdf.Tests.Integration
         }
 
         [Fact]
-        public async Task GeneratePdfFromHtml_WithEmptyHtml_ShouldSucceed()
+        public async Task GeneratePdfFromHtml_WithEmptyHtml_ShouldFailFastValidation()
         {
             // Arrange
             var emptyHtml = "";
@@ -196,8 +196,10 @@ namespace Nast.Html2Pdf.Tests.Integration
 
             // Assert
             result.ShouldNotBeNull();
-            result.Success.ShouldBeTrue(); // Empty HTML now generates a valid empty PDF
-            result.Data.ShouldNotBeNull();
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.ShouldContain("html cannot be null or empty", Case.Insensitive);
+            result.Data.ShouldBeNull();
         }
 
         [Fact]

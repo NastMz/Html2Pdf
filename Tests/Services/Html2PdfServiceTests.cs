@@ -111,10 +111,12 @@ namespace Nast.Html2Pdf.Tests.Services
         public async Task GeneratePdfFromFileAsync_WithValidFile_ShouldReturnSuccessResult()
         {
             // Arrange
-            var templatePath = "template.html";
+            var templatePath = Path.Combine(Path.GetTempPath(), $"template-{Guid.NewGuid():N}.html");
             var model = new { Name = "World" };
             var expectedHtml = "<h1>Hello World</h1>";
             var expectedPdfData = new byte[] { 1, 2, 3, 4, 5 };
+
+            await File.WriteAllTextAsync(templatePath, "<h1>Hello @Model.Name</h1>");
 
             _htmlGeneratorMock
                 .Setup(x => x.GenerateFromFileAsync(templatePath, model, It.IsAny<HtmlGenerationOptions>()))
@@ -132,6 +134,8 @@ namespace Nast.Html2Pdf.Tests.Services
             result.Success.ShouldBeTrue();
             result.Data.ShouldBe(expectedPdfData);
             result.Size.ShouldBe(expectedPdfData.Length);
+
+            File.Delete(templatePath);
         }
 
         [Fact]
@@ -166,7 +170,7 @@ namespace Nast.Html2Pdf.Tests.Services
             var expectedPdfData = new byte[] { 1, 2, 3, 4, 5 };
 
             _pdfConverterMock
-                .Setup(x => x.ConvertFromUrlAsync(url, It.IsAny<PdfOptions>()))
+                .Setup(x => x.ConvertFromUrlAsync("https://google.com/", It.IsAny<PdfOptions>()))
                 .ReturnsAsync(PdfResult.CreateSuccess(expectedPdfData, TimeSpan.FromSeconds(1)));
 
             // Act
@@ -225,6 +229,29 @@ namespace Nast.Html2Pdf.Tests.Services
             result.Success.ShouldBeFalse();
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task GeneratePdfFromFileAsync_WithMissingTemplateFile_ShouldFailBeforeInvokingDependencies()
+        {
+            var missingPath = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.cshtml");
+
+            var result = await _service.GeneratePdfFromFileAsync(missingPath, new { Name = "World" });
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("templatePath");
+            _htmlGeneratorMock.Verify(x => x.GenerateFromFileAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<HtmlGenerationOptions>()), Times.Never);
+            _pdfConverterMock.Verify(x => x.ConvertAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GeneratePdfFromUrlAsync_WithUnsupportedScheme_ShouldFailBeforeInvokingConverter()
+        {
+            var result = await _service.GeneratePdfFromUrlAsync("file:///tmp/input.html");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("supported URL schemes");
+            _pdfConverterMock.Verify(x => x.ConvertFromUrlAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
         }
     }
 }

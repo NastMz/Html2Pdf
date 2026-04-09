@@ -2,15 +2,17 @@ using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 using Nast.Html2Pdf.Abstractions;
+using Nast.Html2Pdf.Helpers;
 using Nast.Html2Pdf.Models;
 using System.Diagnostics;
+using System.Globalization;
 using PuppeteerPdfOptions = PuppeteerSharp.PdfOptions;
 using ModelPdfOptions = Nast.Html2Pdf.Models.PdfOptions;
 
 namespace Nast.Html2Pdf.Services
 {
     /// <summary>
-    /// HTML to PDF converter using Playwright
+    /// HTML to PDF converter using PuppeteerSharp
     /// </summary>
     internal sealed class PdfConverter : IPdfConverter
     {
@@ -35,6 +37,8 @@ namespace Nast.Html2Pdf.Services
             {
                 try
                 {
+                    Html2PdfValidation.EnsureRequiredText(html, nameof(html));
+                    Html2PdfValidation.ValidatePdfOptions(options);
                     _logger.LogDebug("Starting PDF conversion from HTML (attempt {Attempt})", attempt);
 
                     using var page = await _browserPool.GetPageAsync();
@@ -128,6 +132,8 @@ namespace Nast.Html2Pdf.Services
             {
                 try
                 {
+                    var validatedUri = Html2PdfValidation.EnsureSupportedUri(url, nameof(url));
+                    Html2PdfValidation.ValidatePdfOptions(options);
                     _logger.LogDebug("Starting PDF conversion from URL: {Url} (attempt {Attempt})", url, attempt);
 
                     using var page = await _browserPool.GetPageAsync();
@@ -152,7 +158,7 @@ namespace Nast.Html2Pdf.Services
                         throw new InvalidOperationException("Page was closed before navigation");
                     }
 
-                    await page.Page.GoToAsync(url, new NavigationOptions
+                    await page.Page.GoToAsync(validatedUri.ToString(), new NavigationOptions
                     {
                         WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
                         Timeout = options.TimeoutMs
@@ -253,12 +259,12 @@ namespace Nast.Html2Pdf.Services
             // Configure custom dimensions
             if (options.Width.HasValue)
             {
-                pdfOptions.Width = $"{options.Width.Value}in";
+                pdfOptions.Width = $"{options.Width.Value.ToString(CultureInfo.InvariantCulture)}in";
             }
 
             if (options.Height.HasValue)
             {
-                pdfOptions.Height = $"{options.Height.Value}in";
+                pdfOptions.Height = $"{options.Height.Value.ToString(CultureInfo.InvariantCulture)}in";
             }
 
             // Configure page range

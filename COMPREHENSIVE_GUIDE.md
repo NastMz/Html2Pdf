@@ -17,6 +17,8 @@
 
 Nast.Html2Pdf is a powerful .NET library that converts HTML content to PDF documents. It combines the flexibility of RazorLight templates with the reliability of PuppeteerSharp for high-quality PDF generation.
 
+The package targets `net8.0` and is supported for **.NET 8+** consuming applications.
+
 **Important Note**: This library uses **RazorLight** for template processing, not Handlebars. All template examples in this guide use RazorLight/Razor syntax (`@Model.Property`, `@foreach`, `@if`, etc.).
 
 ### Key Features
@@ -159,9 +161,20 @@ services.AddHtml2Pdf(options =>
     options.MaxLifetimeMinutes = 60; // Max lifetime in minutes
     options.AcquireTimeoutSeconds = 30; // Timeout to acquire instance
     options.Headless = true;         // Run in headless mode
-    options.AdditionalArgs = new[] { "--no-sandbox", "--disable-dev-shm-usage" };
+    options.SkipBrowserDownload = false;
+    options.BrowserCacheDirectory = null;
+    options.ExecutablePath = null;
+    options.AllowInsecureCertificates = false;
+    options.DisableSandbox = false;
 });
 ```
+
+### Secure Defaults and Explicit Escape Hatches
+
+- `AllowInsecureCertificates` must stay `false` unless you intentionally accept invalid certificates.
+- `DisableSandbox` must stay `false` unless your runtime environment requires it and you understand the security tradeoff.
+- `SkipBrowserDownload` should only be enabled when you also control Chromium provisioning through `ExecutablePath` or your deployment image.
+- Browser provisioning is serialized per executable/cache plan so concurrent cold starts do not race the browser download path.
 
 ### PDF Layout Options
 
@@ -676,6 +689,17 @@ public class PdfResult
 - Cache compiled templates
 - Process documents in batches
 - Monitor memory usage
+
+#### BrowserPool measurement priorities
+
+When you profile `BrowserPool`, optimize the operations that sit on the consumer runtime path first:
+
+- `AcquirePage`
+- `BrowserProvisioning`
+- `BrowserStartup`
+- `PageCreation`
+
+Treat `ReturnPage`, `DisposePool`, `ClosePage`, and `CloseBrowser` as cleanup/test-host noise unless repeated measurements show they are blocking real request throughput. Those teardown paths can dominate browser-backed tests or hang analysis, but they are not the primary latency that library consumers feel during steady-state conversions.
 
 ### 3. Error Handling
 

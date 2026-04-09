@@ -30,8 +30,13 @@ namespace Nast.Html2Pdf
                     options.MaxInstances = browserPoolOptions.MaxInstances;
                     options.MaxLifetimeMinutes = browserPoolOptions.MaxLifetimeMinutes;
                     options.AcquireTimeoutSeconds = browserPoolOptions.AcquireTimeoutSeconds;
-                    options.AdditionalArgs = browserPoolOptions.AdditionalArgs;
+                    options.AdditionalArgs = browserPoolOptions.AdditionalArgs.ToArray();
                     options.Headless = browserPoolOptions.Headless;
+                    options.ExecutablePath = browserPoolOptions.ExecutablePath;
+                    options.BrowserCacheDirectory = browserPoolOptions.BrowserCacheDirectory;
+                    options.SkipBrowserDownload = browserPoolOptions.SkipBrowserDownload;
+                    options.AllowInsecureCertificates = browserPoolOptions.AllowInsecureCertificates;
+                    options.DisableSandbox = browserPoolOptions.DisableSandbox;
                 }
             });
 

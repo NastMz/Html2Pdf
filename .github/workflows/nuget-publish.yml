@@ -27,7 +27,6 @@ on:
         default: Release
 
 env:
-  DOTNET_VERSION: "8.0.x"
   SOLUTION_PATH: "Nast.Html2Pdf.sln"
   PROJECT_PATH: "Nast.Html2Pdf/Nast.Html2Pdf.csproj"
   BUILD_CONFIGURATION: ${{ github.event.inputs.configuration || 'Release' }}
@@ -35,6 +34,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet-version: ["8.0.x", "9.0.x"]
 
     steps:
       - name: Checkout code
@@ -53,7 +56,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: Update version (if specified)
         if: github.event.inputs.version != ''
@@ -68,17 +71,15 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
 
       - name: Test
-        run: |
-          if [ -f "Tests/Nast.Html2Pdf.Tests.csproj" ]; then
-            dotnet test Tests/Nast.Html2Pdf.Tests.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --verbosity normal --logger trx --results-directory ./TestResults
-          else
-            echo "No tests found, skipping test execution"
-          fi
+        shell: pwsh
+        run: ./run-tests.ps1 -Configuration ${{ env.BUILD_CONFIGURATION }} -Frameworks net8.0,net9.0
 
       - name: Pack
+        if: matrix.dotnet-version == '8.0.x'
         run: dotnet pack ${{ env.PROJECT_PATH }} --configuration ${{ env.BUILD_CONFIGURATION }} --output ./artifacts
 
       - name: Upload artifacts
+        if: matrix.dotnet-version == '8.0.x'
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
@@ -88,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results
+          name: test-results-${{ matrix.dotnet-version }}
           path: ./TestResults/**/*.trx
 
   publish:
@@ -106,7 +107,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: 8.0.x
 
       - name: Verify API Key
         run: |

@@ -1,57 +1,73 @@
-using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Nast.Html2Pdf.Abstractions;
 using Xunit;
 
 namespace Nast.Html2Pdf.Tests
 {
     /// <summary>
-    /// Global test cleanup to ensure Chrome processes are terminated
+    /// Shared test cleanup avoids global process killing and relies on owned-resource disposal.
     /// </summary>
-    public class TestCleanup : IDisposable
+    public sealed class TestCleanup : IAsyncLifetime
     {
-        public TestCleanup()
+        public Task InitializeAsync()
         {
-            // Force kill any existing Chrome processes before running tests
-            ForceKillChromeProcesses();
+            return Task.CompletedTask;
         }
 
-        public void Dispose()
+        public Task DisposeAsync()
         {
-            // Force kill Chrome processes after tests complete
-            ForceKillChromeProcesses();
+            return Task.CompletedTask;
+        }
+    }
+
+    internal static class TestOwnedResourceCleanup
+    {
+        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+
+        public static async Task DisposeServiceProviderOwnedResourcesAsync(IServiceProvider? serviceProvider, Action<string>? log = null)
+        {
+            if (serviceProvider == null)
+            {
+                return;
+            }
+
+            if (serviceProvider.GetService(typeof(IBrowserPool)) is IAsyncDisposable browserPool)
+            {
+                await DisposeOwnedAsync(browserPool, DefaultTimeout, "browser pool", log);
+            }
+
+            if (serviceProvider is IAsyncDisposable asyncDisposable)
+            {
+                await DisposeOwnedAsync(asyncDisposable, DefaultTimeout, "service provider", log);
+                return;
+            }
+
+            if (serviceProvider is IDisposable disposable)
+            {
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    log?.Invoke($"Error disposing service provider: {ex.Message}");
+                }
+            }
         }
 
-        private static void ForceKillChromeProcesses()
+        private static async Task DisposeOwnedAsync(IAsyncDisposable resource, TimeSpan timeout, string resourceName, Action<string>? log)
         {
             try
             {
-                var chromeProcessNames = new[] { "chrome", "chromium", "chromium-browser" };
-                foreach (var processName in chromeProcessNames)
-                {
-                    var processes = Process.GetProcessesByName(processName);
-                    foreach (var process in processes)
-                    {
-                        try
-                        {
-                            if (!process.HasExited)
-                            {
-                                process.Kill();
-                                process.WaitForExit(2000); // Wait up to 2 seconds
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            // Ignore errors when killing processes
-                        }
-                        finally
-                        {
-                            process.Dispose();
-                        }
-                    }
-                }
+                await resource.DisposeAsync().AsTask().WaitAsync(timeout);
             }
-            catch (Exception)
+            catch (TimeoutException)
             {
-                // Ignore errors in cleanup
+                log?.Invoke($"Timed out disposing {resourceName} after {timeout.TotalSeconds:0} seconds.");
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Error disposing {resourceName}: {ex.Message}");
             }
         }
     }

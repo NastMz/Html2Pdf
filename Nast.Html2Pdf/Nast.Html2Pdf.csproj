@@ -12,7 +12,7 @@
     <Authors>Kevin Martinez</Authors>
     <Company>Nast</Company>
     <Product>Nast.Html2Pdf</Product>
-    <Description>A .NET library for converting HTML to PDF using RazorLight for template generation and PuppeteerSharp for PDF conversion. Features include dynamic template support, browser pool optimization, flexible configuration, and complete dependency injection integration.</Description>
+    <Description>A net8.0 HTML-to-PDF library for .NET 8+ consuming applications using RazorLight and PuppeteerSharp with secure-by-default browser provisioning, validated public entry points, and dependency injection integration.</Description>
     <PackageTags>html;pdf;converter;razor;puppeteer;template;generation;browser;pool;dependency-injection</PackageTags>
     <PackageProjectUrl>https://github.com/NastMz/Html2Pdf</PackageProjectUrl>
     <RepositoryUrl>https://github.com/NastMz/Html2Pdf</RepositoryUrl>

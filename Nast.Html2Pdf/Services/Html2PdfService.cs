@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Nast.Html2Pdf.Abstractions;
+using Nast.Html2Pdf.Helpers;
 using Nast.Html2Pdf.Models;
 using System.Diagnostics;
 
@@ -30,7 +31,7 @@ namespace Nast.Html2Pdf.Services
         public async Task<PdfResult> GeneratePdfAsync(string template, object? model = null,
             PdfOptions? pdfOptions = null, HtmlGenerationOptions? htmlOptions = null)
         {
-            if (string.IsNullOrEmpty(template))
+            if (string.IsNullOrWhiteSpace(template))
             {
                 return PdfResult.CreateError("Template cannot be null or empty");
             }
@@ -51,6 +52,8 @@ namespace Nast.Html2Pdf.Services
 
             try
             {
+                Html2PdfValidation.EnsureRequiredText(template, nameof(template));
+                Html2PdfValidation.ValidatePdfOptions(pdfOptions);
                 _logger.LogDebug("Starting PDF generation from template | Operation ID: {OperationId}", operationId);
 
                 // Generate HTML with detailed timing
@@ -147,6 +150,8 @@ namespace Nast.Html2Pdf.Services
 
             try
             {
+                Html2PdfValidation.EnsureExistingFilePath(templatePath, nameof(templatePath));
+                Html2PdfValidation.ValidatePdfOptions(pdfOptions);
                 _logger.LogDebug("Starting PDF generation from file: {TemplatePath}", templatePath);
 
                 // Generar HTML
@@ -182,13 +187,10 @@ namespace Nast.Html2Pdf.Services
 
         public async Task<PdfResult> GeneratePdfFromHtmlAsync(string html, PdfOptions? pdfOptions = null)
         {
-            if (html == null)
+            if (string.IsNullOrWhiteSpace(html))
             {
-                return PdfResult.CreateError("HTML cannot be null");
+                return PdfResult.CreateError("html cannot be null or empty");
             }
-
-            // Allow empty HTML as it should generate a valid empty PDF
-            html = string.IsNullOrEmpty(html) ? "<html><body></body></html>" : html;
             
             // Ensure pdfOptions is not null
             pdfOptions ??= new PdfOptions();
@@ -197,6 +199,8 @@ namespace Nast.Html2Pdf.Services
 
             try
             {
+                Html2PdfValidation.EnsureRequiredText(html, nameof(html));
+                Html2PdfValidation.ValidatePdfOptions(pdfOptions);
                 _logger.LogDebug("Starting PDF generation from HTML");
 
                 // Convertir directamente a PDF
@@ -234,7 +238,7 @@ namespace Nast.Html2Pdf.Services
 
         public async Task<PdfResult> GeneratePdfFromUrlAsync(string url, PdfOptions? pdfOptions = null)
         {
-            if (string.IsNullOrEmpty(url))
+            if (string.IsNullOrWhiteSpace(url))
             {
                 return PdfResult.CreateError("URL cannot be null or empty");
             }
@@ -246,10 +250,12 @@ namespace Nast.Html2Pdf.Services
 
             try
             {
+                var validatedUri = Html2PdfValidation.EnsureSupportedUri(url, nameof(url));
+                Html2PdfValidation.ValidatePdfOptions(pdfOptions);
                 _logger.LogDebug("Starting PDF generation from URL: {Url}", url);
 
                 // Convertir directamente a PDF
-                var pdfResult = await _pdfConverter.ConvertFromUrlAsync(url, pdfOptions);
+                var pdfResult = await _pdfConverter.ConvertFromUrlAsync(validatedUri.ToString(), pdfOptions);
                 if (pdfResult == null)
                 {
                     stopwatch.Stop();

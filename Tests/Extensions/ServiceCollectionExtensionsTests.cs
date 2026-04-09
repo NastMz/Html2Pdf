@@ -138,5 +138,94 @@ namespace Nast.Html2Pdf.Tests.Extensions
             pdfConverterDescriptor.ShouldNotBeNull();
             pdfConverterDescriptor!.Lifetime.ShouldBe(ServiceLifetime.Singleton);
         }
+
+        [Fact]
+        public void AddHtml2Pdf_ShouldFailFastWhenBrowserPoolOptionsAreInvalid()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            var exception = Should.Throw<ArgumentOutOfRangeException>(() =>
+                services.AddHtml2Pdf(options =>
+                {
+                    options.MinInstances = 3;
+                    options.MaxInstances = 2;
+                }));
+
+            exception.ParamName.ShouldBe("minInstances");
+            exception.Message.ShouldContain("less than or equal to maxInstances");
+        }
+
+        [Theory]
+        [InlineData(0, "acquireTimeoutSeconds")]
+        [InlineData(-1, "acquireTimeoutSeconds")]
+        public void AddHtml2Pdf_ShouldRejectNonPositiveAcquireTimeout(int acquireTimeoutSeconds, string expectedParamName)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            var exception = Should.Throw<ArgumentOutOfRangeException>(() =>
+                services.AddHtml2Pdf(options =>
+                {
+                    options.AcquireTimeoutSeconds = acquireTimeoutSeconds;
+                }));
+
+            exception.ParamName.ShouldBe(expectedParamName);
+            exception.Message.ShouldContain("greater than zero");
+        }
+
+        [Theory]
+        [InlineData((ServiceLifetime)(-1))]
+        [InlineData((ServiceLifetime)99)]
+        public void AddHtml2PdfWithLifetime_ShouldRejectInvalidBrowserPoolLifetime(ServiceLifetime browserPoolLifetime)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            var exception = Should.Throw<ArgumentOutOfRangeException>(() =>
+                services.AddHtml2PdfWithLifetime(
+                    options => { },
+                    browserPoolLifetime,
+                    ServiceLifetime.Scoped));
+
+            exception.ParamName.ShouldBe("browserPoolLifetime");
+            exception.Message.ShouldContain("must be a valid ServiceLifetime value");
+        }
+
+        [Theory]
+        [InlineData((ServiceLifetime)(-1))]
+        [InlineData((ServiceLifetime)99)]
+        public void AddHtml2PdfWithLifetime_ShouldRejectInvalidServiceLifetime(ServiceLifetime serviceLifetime)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            var exception = Should.Throw<ArgumentOutOfRangeException>(() =>
+                services.AddHtml2PdfWithLifetime(
+                    options => { },
+                    ServiceLifetime.Singleton,
+                    serviceLifetime));
+
+            exception.ParamName.ShouldBe("serviceLifetime");
+            exception.Message.ShouldContain("must be a valid ServiceLifetime value");
+        }
+
+        [Theory]
+        [InlineData(0, "maxLifetimeMinutes")]
+        [InlineData(-5, "maxLifetimeMinutes")]
+        public void AddHtml2Pdf_ShouldRejectNonPositiveMaxLifetime(int maxLifetimeMinutes, string expectedParamName)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+
+            var exception = Should.Throw<ArgumentOutOfRangeException>(() =>
+                services.AddHtml2Pdf(options =>
+                {
+                    options.MaxLifetimeMinutes = maxLifetimeMinutes;
+                }));
+
+            exception.ParamName.ShouldBe(expectedParamName);
+            exception.Message.ShouldContain("greater than zero");
+        }
     }
 }

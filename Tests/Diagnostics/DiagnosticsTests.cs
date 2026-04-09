@@ -2,10 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nast.Html2Pdf.Models;
 using Nast.Html2Pdf.Services;
-using System.Diagnostics;
 using System.Text;
 using Xunit.Abstractions;
-using System.Diagnostics;
 
 namespace Nast.Html2Pdf.Tests.Diagnostics
 {
@@ -270,6 +268,35 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
         }
 
         [Fact]
+        public async Task GeneratePdf_MultipleConcurrent_ShouldProvisionBrowserOncePerServiceProvider()
+        {
+            var tasks = Enumerable.Range(0, 3)
+                .Select(index => _html2PdfService.GeneratePdfFromHtmlAsync($"<html><body><h1>Concurrent {index}</h1></body></html>"))
+                .ToArray();
+
+            var results = await Task.WhenAll(tasks);
+
+            results.Count(result => result.Success).ShouldBeGreaterThanOrEqualTo(1);
+
+            var startupLogs = _logMessages
+                .Where(log => log.Contains("Browser initialized successfully", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            startupLogs.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public async Task GeneratePdf_RuntimeLogs_ShouldAvoidCleanupTimeoutFallbacksDuringSuccessfulConversion()
+        {
+            var result = await _html2PdfService.GeneratePdfFromHtmlAsync("<html><body><p>runtime-path</p></body></html>");
+
+            result.Success.ShouldBeTrue();
+
+            _logMessages.ShouldContain(log => log.Contains("Browser initialized successfully", StringComparison.OrdinalIgnoreCase));
+            _logMessages.ShouldNotContain(log => log.Contains("timed out while waiting for owned resources to close", StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Fact]
         public async Task GeneratePdf_WithPerformanceBottleneck_ShouldIdentifyBottleneck()
         {
             // Arrange - Create a template that might cause performance issues
@@ -346,51 +373,10 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
         {
             try
             {
-                // Forzar la liberación de recursos de navegador primero
-                if (_serviceProvider != null)
-                {
-                    var browserPool = _serviceProvider.GetService<IBrowserPool>();
-                    if (browserPool != null)
-                    {
-                        try
-                        {
-                            // Intentar liberación asíncrona con timeout
-                            var disposeTask = browserPool.DisposeAsync();
-                            if (!disposeTask.IsCompletedSuccessfully)
-                            {
-                                disposeTask.AsTask().Wait(TimeSpan.FromSeconds(5));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _output.WriteLine($"Error disposing browser pool: {ex.Message}");
-                        }
-                    }
-                }
-
-                // Luego liberar el service provider
-                if (_serviceProvider is IAsyncDisposable asyncDisposable)
-                {
-                    try
-                    {
-                        var task = asyncDisposable.DisposeAsync();
-                        if (!task.IsCompletedSuccessfully)
-                        {
-                            task.AsTask().Wait(TimeSpan.FromSeconds(5));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _output.WriteLine($"Error during async disposal: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    _serviceProvider?.Dispose();
-                }
-
-                // Forzar la eliminación de procesos de navegador como último recurso
-                KillChromeProcesses();
+                TestOwnedResourceCleanup
+                    .DisposeServiceProviderOwnedResourcesAsync(_serviceProvider, _output.WriteLine)
+                    .GetAwaiter()
+                    .GetResult();
             }
             catch (Exception ex)
             {
@@ -400,91 +386,7 @@ namespace Nast.Html2Pdf.Tests.Diagnostics
 
         public async ValueTask DisposeAsync()
         {
-            if (_serviceProvider is IAsyncDisposable asyncDisposable)
-            {
-                await asyncDisposable.DisposeAsync();
-            }
-            else
-            {
-                _serviceProvider?.Dispose();
-            }
-        }
-
-        private static void KillChromeProcesses()
-        {
-            try
-            {
-                // Buscar y cerrar procesos de chrome/chromium que puedan estar colgados
-                var chromeProcesses = Process.GetProcesses()
-                    .Where(p => p.ProcessName.Contains("chrome", StringComparison.OrdinalIgnoreCase) ||
-                               p.ProcessName.Contains("chromium", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                foreach (var process in chromeProcesses)
-                {
-                    try
-                    {
-                        if (!process.HasExited)
-                        {
-                            process.Kill();
-                            process.WaitForExit(1000);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Ignorar errores al cerrar procesos
-                    }
-                    finally
-                    {
-                        process.Dispose();
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Ignorar errores generales
-            }
-        }
-
-        // Finalizador para asegurar limpieza
-        ~DiagnosticsTests()
-        {
-            KillAllChromeProcesses();
-        }
-
-        private static void KillAllChromeProcesses()
-        {
-            try
-            {
-                var chromeProcesses = Process.GetProcesses()
-                    .Where(p => p.ProcessName.Contains("chrome", StringComparison.OrdinalIgnoreCase) ||
-                               p.ProcessName.Contains("chromium", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                foreach (var process in chromeProcesses)
-                {
-                    try
-                    {
-                        if (!process.HasExited)
-                        {
-                            process.Kill();
-                            process.WaitForExit(1000);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Ignorar errores
-                    }
-                    finally
-                    {
-                        process.Dispose();
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Ignorar errores generales
-            }
+            await TestOwnedResourceCleanup.DisposeServiceProviderOwnedResourcesAsync(_serviceProvider, _output.WriteLine);
         }
     }
 

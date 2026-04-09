@@ -119,10 +119,12 @@ namespace Nast.Html2Pdf.Tests.Services
         public async Task GeneratePdfFromFileAsync_WithValidFile_ShouldReturnSuccessResult()
         {
             // Arrange
-            var templatePath = "template.html";
+            var templatePath = Path.Combine(Path.GetTempPath(), $"template-{Guid.NewGuid():N}.html");
             var model = new { Name = "World" };
             var expectedHtml = "<h1>Hello World</h1>";
             var expectedPdfData = new byte[] { 1, 2, 3, 4, 5 };
+
+            await File.WriteAllTextAsync(templatePath, "<h1>Hello @Model.Name</h1>");
 
             _htmlGeneratorMock.Setup(x => x.GenerateFromFileAsync(templatePath, model, It.IsAny<HtmlGenerationOptions>()))
                 .ReturnsAsync(HtmlResult.CreateSuccess(expectedHtml, TimeSpan.FromMilliseconds(100)));
@@ -141,6 +143,8 @@ namespace Nast.Html2Pdf.Tests.Services
 
             _htmlGeneratorMock.Verify(x => x.GenerateFromFileAsync(templatePath, model, It.IsAny<HtmlGenerationOptions>()), Times.Once);
             _pdfConverterMock.Verify(x => x.ConvertAsync(expectedHtml, It.IsAny<PdfOptions>()), Times.Once);
+
+            File.Delete(templatePath);
         }
 
         [Fact]
@@ -174,7 +178,7 @@ namespace Nast.Html2Pdf.Tests.Services
             var url = "https://example.com";
             var expectedPdfData = new byte[] { 1, 2, 3, 4, 5 };
 
-            _pdfConverterMock.Setup(x => x.ConvertFromUrlAsync(url, It.IsAny<PdfOptions>()))
+            _pdfConverterMock.Setup(x => x.ConvertFromUrlAsync("https://example.com/", It.IsAny<PdfOptions>()))
                 .ReturnsAsync(PdfResult.CreateSuccess(expectedPdfData, TimeSpan.FromMilliseconds(300)));
 
             // Act
@@ -188,7 +192,7 @@ namespace Nast.Html2Pdf.Tests.Services
 
             // Verificar que no se llamó al generador HTML
             _htmlGeneratorMock.Verify(x => x.GenerateAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<HtmlGenerationOptions>()), Times.Never);
-            _pdfConverterMock.Verify(x => x.ConvertFromUrlAsync(url, It.IsAny<PdfOptions>()), Times.Once);
+            _pdfConverterMock.Verify(x => x.ConvertFromUrlAsync("https://example.com/", It.IsAny<PdfOptions>()), Times.Once);
         }
 
         [Theory]

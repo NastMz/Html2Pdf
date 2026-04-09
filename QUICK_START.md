@@ -1,5 +1,7 @@
 # Nast.Html2Pdf - Installation & Usage Guide
 
+`Nast.Html2Pdf` ships as a `net8.0` package for **.NET 8+** consuming applications and uses secure-by-default Chromium settings.
+
 ## Installation
 
 ### NuGet Package Manager
@@ -125,6 +127,18 @@ services.AddHtml2Pdf(options =>
     options.MaxInstances = 5;
     options.MaxLifetimeMinutes = 60;
     options.AcquireTimeoutSeconds = 30;
+    options.SkipBrowserDownload = false; // Set true when you provide an explicit executable path
+    options.ExecutablePath = null;       // Or point to your managed Chromium/Chrome installation
+});
+```
+
+### Insecure Opt-ins (only when you really need them)
+
+```csharp
+services.AddHtml2Pdf(options =>
+{
+    options.AllowInsecureCertificates = false;
+    options.DisableSandbox = false;
 });
 ```
 

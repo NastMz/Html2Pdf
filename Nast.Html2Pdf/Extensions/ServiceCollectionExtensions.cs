@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nast.Html2Pdf.Abstractions;
+using Nast.Html2Pdf.Helpers;
 using Nast.Html2Pdf.Services;
 
 namespace Nast.Html2Pdf.Extensions
@@ -25,8 +26,10 @@ namespace Nast.Html2Pdf.Extensions
         public static IServiceCollection AddHtml2Pdf(this IServiceCollection services,
             Action<BrowserPoolOptions> configureBrowserPool)
         {
+            var validatedOptions = CreateValidatedBrowserPoolOptions(configureBrowserPool);
+
             // Configure browser pool options
-            services.Configure(configureBrowserPool);
+            services.Configure<BrowserPoolOptions>(options => CopyOptions(validatedOptions, options));
 
             // Register browser pool as a singleton
             services.AddSingleton<IBrowserPool>(serviceProvider =>
@@ -52,8 +55,13 @@ namespace Nast.Html2Pdf.Extensions
             ServiceLifetime browserPoolLifetime = ServiceLifetime.Singleton,
             ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
         {
+            ValidateServiceLifetime(browserPoolLifetime, nameof(browserPoolLifetime));
+            ValidateServiceLifetime(serviceLifetime, nameof(serviceLifetime));
+
+            var validatedOptions = CreateValidatedBrowserPoolOptions(configureBrowserPool);
+
             // Configure browser pool options
-            services.Configure(configureBrowserPool);
+            services.Configure<BrowserPoolOptions>(options => CopyOptions(validatedOptions, options));
 
             // Register browser pool with specified lifetime
             services.Add(new ServiceDescriptor(typeof(IBrowserPool), serviceProvider =>
@@ -70,6 +78,38 @@ namespace Nast.Html2Pdf.Extensions
             services.Add(new ServiceDescriptor(typeof(IHtml2PdfService), typeof(Html2PdfService), serviceLifetime));
 
             return services;
+        }
+
+        private static BrowserPoolOptions CreateValidatedBrowserPoolOptions(Action<BrowserPoolOptions> configureBrowserPool)
+        {
+            ArgumentNullException.ThrowIfNull(configureBrowserPool);
+
+            var options = new BrowserPoolOptions();
+            configureBrowserPool(options);
+            return Html2PdfValidation.ValidateBrowserPoolOptions(options);
+        }
+
+        private static void CopyOptions(BrowserPoolOptions source, BrowserPoolOptions destination)
+        {
+            destination.MinInstances = source.MinInstances;
+            destination.MaxInstances = source.MaxInstances;
+            destination.MaxLifetimeMinutes = source.MaxLifetimeMinutes;
+            destination.AcquireTimeoutSeconds = source.AcquireTimeoutSeconds;
+            destination.AdditionalArgs = source.AdditionalArgs;
+            destination.Headless = source.Headless;
+            destination.ExecutablePath = source.ExecutablePath;
+            destination.BrowserCacheDirectory = source.BrowserCacheDirectory;
+            destination.SkipBrowserDownload = source.SkipBrowserDownload;
+            destination.AllowInsecureCertificates = source.AllowInsecureCertificates;
+            destination.DisableSandbox = source.DisableSandbox;
+        }
+
+        private static void ValidateServiceLifetime(ServiceLifetime lifetime, string parameterName)
+        {
+            if (!Enum.IsDefined(lifetime))
+            {
+                throw new ArgumentOutOfRangeException(parameterName, lifetime, $"{parameterName} must be a valid ServiceLifetime value.");
+            }
         }
     }
 }

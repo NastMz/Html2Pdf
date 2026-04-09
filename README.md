@@ -1,6 +1,21 @@
 # Nast.Html2Pdf
 
-A .NET library for converting HTML to PDF using RazorLight for template generation and PuppeteerSharp for PDF conversion.
+A secure-by-default `net8.0` HTML-to-PDF library for **.NET 8+** consuming applications using RazorLight for template generation and PuppeteerSharp for browser-backed PDF rendering.
+
+## Runtime Support
+
+- Package target: `net8.0`
+- Supported consumer runtimes: **.NET 8+**
+- Browser provisioning: PuppeteerSharp-compatible on-demand download by default, or explicit executable/cache configuration for locked-down environments
+
+## Secure Defaults
+
+The library now starts Chromium with a secure baseline by default.
+
+- `AllowInsecureCertificates = false`
+- `DisableSandbox = false`
+- no permissive `--disable-web-security` defaults
+- invalid template, HTML, URL, file, and PDF option inputs fail before browser allocation
 
 ## Features
 
