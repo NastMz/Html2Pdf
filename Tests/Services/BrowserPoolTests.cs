@@ -368,6 +368,82 @@ namespace Nast.Html2Pdf.Tests.Services
             }
         }
 
+        [Fact]
+        public async Task ReturnPageAsync_WhenReturnedPageIsClosed_ShouldCloseItAndCreateReplacementOnNextAcquire()
+        {
+            var browserMock = CreateBrowserMock();
+            var firstPageClosed = false;
+            var firstPage = CreatePageMock(browserMock.Object, "about:blank");
+            var secondPage = CreatePageMock(browserMock.Object, "about:blank");
+            firstPage.SetupGet(x => x.IsClosed).Returns(() => firstPageClosed);
+            var pageQueue = new Queue<IPage>(new[] { firstPage.Object, secondPage.Object });
+            var closedPages = 0;
+
+            await using var pool = new BrowserPool(
+                new BrowserPoolOptions { MaxInstances = 1, AcquireTimeoutSeconds = 1 },
+                _loggerMock.Object,
+                new BrowserPoolRuntimeHooks
+                {
+                    EnsureBrowserProvisionedAsync = _ => Task.CompletedTask,
+                    LaunchBrowserAsync = (_, _) => Task.FromResult(browserMock.Object),
+                    CreatePageAsync = _ => Task.FromResult(pageQueue.Dequeue()),
+                    ClosePageAsync = _ =>
+                    {
+                        closedPages++;
+                        return Task.CompletedTask;
+                    },
+                    CloseBrowserAsync = _ => Task.CompletedTask
+                });
+
+            var originalPage = await pool.GetPageAsync();
+            firstPageClosed = true;
+            await pool.ReturnPageAsync(originalPage);
+
+            var replacementPage = await pool.GetPageAsync();
+
+            closedPages.ShouldBe(1);
+            replacementPage.ShouldNotBeSameAs(originalPage);
+        }
+
+        [Fact]
+        public async Task GetPageAsync_WhenPageCreationFailsInitially_ShouldRetryWithFreshBrowser()
+        {
+            var firstBrowser = CreateBrowserMock();
+            var secondBrowser = CreateBrowserMock();
+            var launchedBrowsers = 0;
+            var createAttempts = 0;
+            var replacementPage = CreatePageMock(secondBrowser.Object, "about:blank");
+
+            await using var pool = new BrowserPool(
+                new BrowserPoolOptions { MaxInstances = 1, AcquireTimeoutSeconds = 1 },
+                _loggerMock.Object,
+                new BrowserPoolRuntimeHooks
+                {
+                    EnsureBrowserProvisionedAsync = _ => Task.CompletedTask,
+                    LaunchBrowserAsync = (_, _) => Task.FromResult<IBrowser>(launchedBrowsers++ == 0 ? firstBrowser.Object : secondBrowser.Object),
+                    CreatePageAsync = _ =>
+                    {
+                        createAttempts++;
+                        if (createAttempts == 1)
+                        {
+                            throw new InvalidOperationException("page creation failed");
+                        }
+
+                        return Task.FromResult(replacementPage.Object);
+                    },
+                    ClosePageAsync = _ => Task.CompletedTask,
+                    CloseBrowserAsync = _ => Task.CompletedTask
+                });
+
+            var page = await pool.GetPageAsync();
+
+            page.ShouldNotBeNull();
+            page.Page.ShouldBe(replacementPage.Object);
+            createAttempts.ShouldBe(2);
+            launchedBrowsers.ShouldBe(2);
+            firstBrowser.Verify(x => x.CloseAsync(), Times.Once);
+        }
+
         private static Mock<IBrowser> CreateBrowserMock()
         {
             var browserMock = new Mock<IBrowser>();

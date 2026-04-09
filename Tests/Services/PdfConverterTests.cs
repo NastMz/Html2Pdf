@@ -124,6 +124,80 @@ namespace Nast.Html2Pdf.Tests.Services
             _browserPoolMock.Verify(x => x.GetPageAsync(), Times.Exactly(2));
         }
 
+        [Fact]
+        public async Task ConvertAsync_WhenSetContentThrowsRetryableException_ShouldRetryAndSucceed()
+        {
+            var converter = new PdfConverter(_browserPoolMock.Object, _loggerMock.Object);
+            var firstPageMock = new Mock<IPage>();
+            var secondPageMock = new Mock<IPage>();
+            var firstPooledPageMock = CreatePooledPageMock(firstPageMock.Object);
+            var secondPooledPageMock = CreatePooledPageMock(secondPageMock.Object);
+
+            firstPageMock.SetupGet(x => x.IsClosed).Returns(false);
+            firstPageMock.Setup(x => x.EmulateMediaTypeAsync(MediaType.Print)).Returns(Task.CompletedTask);
+            firstPageMock.Setup(x => x.SetContentAsync(It.IsAny<string>(), It.IsAny<NavigationOptions>()))
+                .ThrowsAsync(new InvalidOperationException("Page was closed during content load"));
+
+            secondPageMock.SetupGet(x => x.IsClosed).Returns(false);
+            secondPageMock.Setup(x => x.EmulateMediaTypeAsync(MediaType.Print)).Returns(Task.CompletedTask);
+            secondPageMock.Setup(x => x.SetContentAsync(It.IsAny<string>(), It.IsAny<NavigationOptions>())).Returns(Task.CompletedTask);
+            secondPageMock.Setup(x => x.EvaluateExpressionAsync<int>("document.images.length")).ReturnsAsync(0);
+            secondPageMock.Setup(x => x.PdfDataAsync(It.IsAny<PuppeteerSharp.PdfOptions>())).ReturnsAsync([4, 5, 6]);
+
+            _browserPoolMock.SetupSequence(x => x.GetPageAsync())
+                .ReturnsAsync(firstPooledPageMock.Object)
+                .ReturnsAsync(secondPooledPageMock.Object);
+
+            var result = await converter.ConvertAsync("<html><body>retry-content</body></html>");
+
+            result.Success.ShouldBeTrue();
+            _browserPoolMock.Verify(x => x.GetPageAsync(), Times.Exactly(2));
+        }
+
+        [Fact]
+        public async Task ConvertAsync_WhenSetContentThrowsNonRetryableException_ShouldFailWithoutRetry()
+        {
+            var converter = new PdfConverter(_browserPoolMock.Object, _loggerMock.Object);
+            var pageMock = new Mock<IPage>();
+            var pooledPageMock = CreatePooledPageMock(pageMock.Object);
+
+            pageMock.SetupGet(x => x.IsClosed).Returns(false);
+            pageMock.Setup(x => x.EmulateMediaTypeAsync(MediaType.Print)).Returns(Task.CompletedTask);
+            pageMock.Setup(x => x.SetContentAsync(It.IsAny<string>(), It.IsAny<NavigationOptions>()))
+                .ThrowsAsync(new ArgumentException("invalid html"));
+
+            _browserPoolMock.Setup(x => x.GetPageAsync()).ReturnsAsync(pooledPageMock.Object);
+
+            var result = await converter.ConvertAsync("<html><body>broken</body></html>");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("invalid html");
+            _browserPoolMock.Verify(x => x.GetPageAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task ConvertAsync_WithWaitForImagesEnabledAndNoImages_ShouldSkipWaitingAndSucceed()
+        {
+            var converter = new PdfConverter(_browserPoolMock.Object, _loggerMock.Object);
+            var pageMock = new Mock<IPage>();
+            var pooledPageMock = CreatePooledPageMock(pageMock.Object);
+
+            pageMock.SetupGet(x => x.IsClosed).Returns(false);
+            pageMock.Setup(x => x.EmulateMediaTypeAsync(MediaType.Print)).Returns(Task.CompletedTask);
+            pageMock.Setup(x => x.SetContentAsync(It.IsAny<string>(), It.IsAny<NavigationOptions>())).Returns(Task.CompletedTask);
+            pageMock.Setup(x => x.EvaluateExpressionAsync<int>("document.images.length")).ReturnsAsync(0);
+            pageMock.Setup(x => x.PdfDataAsync(It.IsAny<PuppeteerSharp.PdfOptions>())).ReturnsAsync([7, 8, 9]);
+
+            _browserPoolMock.Setup(x => x.GetPageAsync()).ReturnsAsync(pooledPageMock.Object);
+
+            var result = await converter.ConvertAsync(
+                "<html><body><img src='logo.png' /></body></html>",
+                new ModelPdfOptions { WaitForImages = true });
+
+            result.Success.ShouldBeTrue();
+            pageMock.Verify(x => x.EvaluateExpressionAsync<int>("document.images.length"), Times.Once);
+        }
+
         private static Mock<IPooledPage> CreatePooledPageMock(IPage page)
         {
             var pooledPageMock = new Mock<IPooledPage>();

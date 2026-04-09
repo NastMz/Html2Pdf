@@ -253,5 +253,69 @@ namespace Nast.Html2Pdf.Tests.Services
             result.ErrorMessage.ShouldContain("supported URL schemes");
             _pdfConverterMock.Verify(x => x.ConvertFromUrlAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
         }
+
+        [Fact]
+        public async Task GeneratePdfAsync_WhenHtmlGeneratorReturnsNull_ShouldFailAndSkipPdfConversion()
+        {
+            _htmlGeneratorMock
+                .Setup(x => x.GenerateAsync("<h1>Hello</h1>", null, It.IsAny<HtmlGenerationOptions>()))
+                .ReturnsAsync((HtmlResult?)null);
+
+            var result = await _service.GeneratePdfAsync("<h1>Hello</h1>");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("HTML generation returned null result");
+            _pdfConverterMock.Verify(x => x.ConvertAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GeneratePdfAsync_WhenHtmlGeneratorReturnsFailureResult_ShouldReturnWrappedError()
+        {
+            _htmlGeneratorMock
+                .Setup(x => x.GenerateAsync("<h1>Hello</h1>", null, It.IsAny<HtmlGenerationOptions>()))
+                .ReturnsAsync(new HtmlResult
+                {
+                    Success = false,
+                    ErrorMessage = "template render failed",
+                    Exception = new InvalidOperationException("razor failed")
+                });
+
+            var result = await _service.GeneratePdfAsync("<h1>Hello</h1>");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("HTML generation failed: template render failed");
+            _pdfConverterMock.Verify(x => x.ConvertAsync(It.IsAny<string>(), It.IsAny<PdfOptions>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GeneratePdfFromHtmlAsync_WhenConverterReturnsNull_ShouldReturnFailureResult()
+        {
+            _pdfConverterMock
+                .Setup(x => x.ConvertAsync("<h1>Hello</h1>", It.IsAny<PdfOptions>()))
+                .ReturnsAsync((PdfResult?)null);
+
+            var result = await _service.GeneratePdfFromHtmlAsync("<h1>Hello</h1>");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("PDF converter returned null result");
+        }
+
+        [Fact]
+        public async Task GeneratePdfFromHtmlAsync_WhenConverterReturnsSuccessWithoutData_ShouldReturnFailureResult()
+        {
+            _pdfConverterMock
+                .Setup(x => x.ConvertAsync("<h1>Hello</h1>", It.IsAny<PdfOptions>()))
+                .ReturnsAsync(new PdfResult
+                {
+                    Success = true,
+                    Data = null,
+                    Duration = TimeSpan.FromMilliseconds(10)
+                });
+
+            var result = await _service.GeneratePdfFromHtmlAsync("<h1>Hello</h1>");
+
+            result.Success.ShouldBeFalse();
+            result.ErrorMessage.ShouldContain("data is null");
+        }
     }
 }

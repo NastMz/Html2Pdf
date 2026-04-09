@@ -165,7 +165,6 @@ services.AddHtml2Pdf(options =>
     options.MaxLifetimeMinutes = 60; // Max lifetime in minutes
     options.AcquireTimeoutSeconds = 30; // Timeout to acquire instance
 });
-});
 ```
 
 ### PDF Options
