@@ -67,6 +67,8 @@ jobs:
 
       - name: Test
         shell: pwsh
+        env:
+          HTML2PDF_TEST_DISABLE_SANDBOX: 'true'
         run: ./run-tests.ps1 -Configuration ${{ env.BUILD_CONFIGURATION }} -Frameworks net8.0,net9.0
 
       - name: Pack

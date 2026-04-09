@@ -6,6 +6,7 @@ namespace Nast.Html2Pdf.Tests.Services
     [Collection("Integration")]
     public class BrowserPoolTests
     {
+        private const string DisableSandboxEnvironmentVariable = "HTML2PDF_TEST_DISABLE_SANDBOX";
         private readonly Mock<ILogger<BrowserPool>> _loggerMock;
         private readonly BrowserPoolOptions _options;
 
@@ -36,6 +37,7 @@ namespace Nast.Html2Pdf.Tests.Services
         [Fact]
         public void BuildLaunchArguments_ShouldUseSecureDefaults()
         {
+            using var _ = new EnvironmentVariableScope(DisableSandboxEnvironmentVariable, null);
             var args = BrowserPool.BuildLaunchArguments(new BrowserPoolOptions());
 
             args.ShouldContain("--disable-dev-shm-usage");
@@ -50,6 +52,7 @@ namespace Nast.Html2Pdf.Tests.Services
         [Fact]
         public void BuildLaunchArguments_ShouldAddOnlyExplicitInsecureOptInsAndAdditionalArgs()
         {
+            using var _ = new EnvironmentVariableScope(DisableSandboxEnvironmentVariable, null);
             var args = BrowserPool.BuildLaunchArguments(new BrowserPoolOptions
             {
                 AllowInsecureCertificates = true,
@@ -62,6 +65,28 @@ namespace Nast.Html2Pdf.Tests.Services
             args.ShouldContain("--disable-setuid-sandbox");
             args.ShouldContain("--window-size=1280,720");
             args.ShouldNotContain("--disable-web-security");
+        }
+
+        [Fact]
+        public void BuildLaunchArguments_ShouldEnableSandboxByEnvironmentOptInForBrowserTests()
+        {
+            using var _ = new EnvironmentVariableScope(DisableSandboxEnvironmentVariable, "true");
+
+            var args = BrowserPool.BuildLaunchArguments(new BrowserPoolOptions());
+
+            args.ShouldContain("--no-sandbox");
+            args.ShouldContain("--disable-setuid-sandbox");
+        }
+
+        [Fact]
+        public void BuildLaunchArguments_ShouldIgnoreFalseEnvironmentOptInForBrowserTests()
+        {
+            using var _ = new EnvironmentVariableScope(DisableSandboxEnvironmentVariable, "false");
+
+            var args = BrowserPool.BuildLaunchArguments(new BrowserPoolOptions());
+
+            args.ShouldNotContain("--no-sandbox");
+            args.ShouldNotContain("--disable-setuid-sandbox");
         }
 
         [Fact]
@@ -459,6 +484,24 @@ namespace Nast.Html2Pdf.Tests.Services
             pageMock.SetupGet(x => x.Browser).Returns(browser);
             pageMock.SetupGet(x => x.Url).Returns(url);
             return pageMock;
+        }
+
+        private sealed class EnvironmentVariableScope : IDisposable
+        {
+            private readonly string _name;
+            private readonly string? _originalValue;
+
+            public EnvironmentVariableScope(string name, string? value)
+            {
+                _name = name;
+                _originalValue = Environment.GetEnvironmentVariable(name);
+                Environment.SetEnvironmentVariable(name, value);
+            }
+
+            public void Dispose()
+            {
+                Environment.SetEnvironmentVariable(_name, _originalValue);
+            }
         }
     }
 }

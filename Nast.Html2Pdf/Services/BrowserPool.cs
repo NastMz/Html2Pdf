@@ -297,6 +297,7 @@ namespace Nast.Html2Pdf.Services
     /// </summary>
     internal sealed class BrowserPool : IBrowserPool
     {
+        internal const string DisableSandboxEnvironmentVariable = "HTML2PDF_TEST_DISABLE_SANDBOX";
         private readonly BrowserPoolOptions _options;
         private readonly ILogger<BrowserPool> _logger;
         private readonly ConcurrentQueue<PooledPage> _availablePages;
@@ -579,7 +580,7 @@ namespace Nast.Html2Pdf.Services
                 args.Add("--ignore-certificate-errors");
             }
 
-            if (options.DisableSandbox)
+            if (options.DisableSandbox || IsDisableSandboxEnvironmentOptInEnabled())
             {
                 args.Add("--no-sandbox");
                 args.Add("--disable-setuid-sandbox");
@@ -591,6 +592,12 @@ namespace Nast.Html2Pdf.Services
             }
 
             return args.ToArray();
+        }
+
+        private static bool IsDisableSandboxEnvironmentOptInEnabled()
+        {
+            return bool.TryParse(Environment.GetEnvironmentVariable(DisableSandboxEnvironmentVariable), out var disableSandbox)
+                && disableSandbox;
         }
 
         private bool IsPageValid(PooledPage page)

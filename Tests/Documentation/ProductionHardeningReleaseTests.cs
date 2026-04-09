@@ -28,6 +28,7 @@ namespace Nast.Html2Pdf.Tests.Documentation
 
             workflow.ShouldContain("8.0.x");
             workflow.ShouldContain("9.0.x");
+            workflow.ShouldContain("HTML2PDF_TEST_DISABLE_SANDBOX");
             lowerScript.ShouldContain("net8.0");
             lowerScript.ShouldContain("net9.0");
             lowerScript.ShouldContain("puppeteersharp");
