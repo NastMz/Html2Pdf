@@ -54,7 +54,7 @@ dotnet add package Nast.Html2Pdf
 ### Package Reference
 
 ```xml
-<PackageReference Include="Nast.Html2Pdf" Version="1.0.0" />
+<PackageReference Include="Nast.Html2Pdf" Version="1.0.1" />
 ```
 
 ### Post-Installation Setup

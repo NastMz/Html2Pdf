@@ -8,6 +8,7 @@ namespace Nast.Html2Pdf.Tests.Documentation
             var projectFile = ReadRepoFile("Nast.Html2Pdf", "Nast.Html2Pdf.csproj");
 
             projectFile.ShouldContain("<TargetFramework>net8.0</TargetFramework>");
+            projectFile.ShouldContain("<Version>1.0.1</Version>");
             projectFile.ShouldContain(".NET 8+ consuming applications");
         }
 
@@ -38,11 +39,17 @@ namespace Nast.Html2Pdf.Tests.Documentation
         [Fact]
         public void Documentation_ShouldMentionSecureDefaultsProvisioningAndNet8PlusSupport()
         {
-            ReadRepoFile("README.md").ToLowerInvariant().ShouldContain("secure-by-default");
-            ReadRepoFile("README.md").ToLowerInvariant().ShouldContain(".net 8+");
+            var readme = ReadRepoFile("README.md").ToLowerInvariant();
+
+            readme.ShouldContain("secure defaults");
+            readme.ShouldContain(".net 8+");
+            readme.ShouldContain("supported entry points");
+            readme.ShouldContain("browser provisioning");
+            readme.ShouldContain("testing and ci");
             ReadRepoFile("QUICK_START.md").ToLowerInvariant().ShouldContain("skipbrowserdownload");
             ReadRepoFile("COMPREHENSIVE_GUIDE.md").ToLowerInvariant().ShouldContain("allowinsecurecertificates");
             ReadRepoFile("COMPREHENSIVE_GUIDE.md").ToLowerInvariant().ShouldContain("disablesandbox");
+            ReadRepoFile("COMPREHENSIVE_GUIDE.md").ShouldContain("Version=\"1.0.1\"");
         }
 
         [Fact]
@@ -54,6 +61,15 @@ namespace Nast.Html2Pdf.Tests.Documentation
             lowerReleaseNotes.ShouldContain("secure defaults");
             lowerReleaseNotes.ShouldContain("migration");
             lowerReleaseNotes.ShouldContain(".net 8+");
+            releaseNotes.ShouldContain("1.0.1");
+        }
+
+        [Fact]
+        public void BuildPackageScript_ShouldDefaultToNextPatchVersion()
+        {
+            var buildPackageScript = ReadRepoFile("Nast.Html2Pdf", "build-package.ps1");
+
+            buildPackageScript.ShouldContain("[string]$Version = \"1.0.1\"");
         }
 
         private static string ReadRepoFile(params string[] relativeSegments)

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 - Unreleased
 
 ### Production hardening and .NET 8+ support
 

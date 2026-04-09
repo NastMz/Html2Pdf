@@ -1,35 +1,13 @@
 # Nast.Html2Pdf
 
-A secure-by-default `net8.0` HTML-to-PDF library for **.NET 8+** consuming applications using RazorLight for template generation and PuppeteerSharp for browser-backed PDF rendering.
+`Nast.Html2Pdf` is a secure-by-default HTML-to-PDF library that targets `net8.0` and is intended for **.NET 8+** consuming applications. It renders RazorLight templates to HTML and uses PuppeteerSharp/Chromium for PDF generation.
 
 ## Runtime Support
 
 - Package target: `net8.0`
 - Supported consumer runtimes: **.NET 8+**
-- Browser provisioning: PuppeteerSharp-compatible on-demand download by default, or explicit executable/cache configuration for locked-down environments
-
-## Secure Defaults
-
-The library now starts Chromium with a secure baseline by default.
-
-- `AllowInsecureCertificates = false`
-- `DisableSandbox = false`
-- no permissive `--disable-web-security` defaults
-- invalid template, HTML, URL, file, and PDF option inputs fail before browser allocation
-
-## Features
-
-- ✅ **HTML Generation**: Dynamic template support with RazorLight
-- ✅ **PDF Conversion**: Using PuppeteerSharp for high-quality conversion
-- ✅ **Browser Pool**: Performance optimization with instance reuse
-- ✅ **Flexible Configuration**: Customization of sizes, margins, orientation
-- ✅ **Headers & Footers**: Support for content in headers and footers
-- ✅ **Error Handling**: Complete error management with detailed information
-- ✅ **External Resources**: Support for fonts, images, and CSS styles
-- ✅ **Dependency Injection**: Complete integration with .NET DI
-- ✅ **Functional Testing**: Real-world document scenarios (invoices, reports, letters)
-- ✅ **Logging & Diagnostics**: Comprehensive performance monitoring and bottleneck detection
-- ✅ **Comprehensive Documentation**: Complete user guide and API reference
+- Platforms: Windows, Linux, macOS
+- Browser engine: Chromium through PuppeteerSharp
 
 ## Installation
 
@@ -37,544 +15,293 @@ The library now starts Chromium with a secure baseline by default.
 dotnet add package Nast.Html2Pdf
 ```
 
-## Quick Start
+```xml
+<PackageReference Include="Nast.Html2Pdf" Version="1.0.1" />
+```
+
+## Secure Defaults
+
+The library starts from a conservative Chromium baseline.
+
+- `AllowInsecureCertificates = false`
+- `DisableSandbox = false`
+- no permissive `--disable-web-security` default
+- invalid template, HTML, file path, URL, and PDF option inputs fail before expensive browser work
+
+Only opt into weaker settings when your environment truly requires them.
+
+## Supported Entry Points
+
+Primary service API via `IHtml2PdfService`:
+
+- `GeneratePdfAsync(template, model, pdfOptions, htmlOptions)` for Razor templates plus model data
+- `GeneratePdfFromFileAsync(templatePath, model, pdfOptions, htmlOptions)` for template files
+- `GeneratePdfFromHtmlAsync(html, pdfOptions)` for already-rendered HTML
+- `GeneratePdfFromUrlAsync(url, pdfOptions)` for reachable `http` or `https` URLs
+
+Additional convenience entry points:
+
+- `Html2PdfFactory.Create(...)` and `Html2PdfFactory.CreateDefault()` for non-DI scenarios
+- `Html2PdfServiceExtensions` helpers to write PDFs directly to files or streams
+
+## DI Usage
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
+using Nast.Html2Pdf.Abstractions;
 using Nast.Html2Pdf.Extensions;
 
-// Configure services
 var services = new ServiceCollection();
 services.AddLogging();
-services.AddHtml2Pdf();
-
-var serviceProvider = services.BuildServiceProvider();
-var pdfService = serviceProvider.GetRequiredService<IHtml2PdfService>();
-
-// Generate PDF from HTML
-var html = @"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sample Document</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { background: #f0f0f0; padding: 20px; }
-    </style>
-</head>
-<body>
-    <div class='header'>
-        <h1>Sample Document</h1>
-    </div>
-    <p>This is a sample PDF document.</p>
-</body>
-</html>";
-
-var result = await pdfService.GeneratePdfFromHtmlAsync(html);
-
-if (result.Success)
+services.AddHtml2Pdf(options =>
 {
-    await File.WriteAllBytesAsync("document.pdf", result.Data);
-    Console.WriteLine($"PDF generated successfully in {result.Duration.TotalMilliseconds}ms");
-}
+    options.MinInstances = 1;
+    options.MaxInstances = 3;
+    options.AcquireTimeoutSeconds = 30;
+});
+
+using var provider = services.BuildServiceProvider();
+var html2Pdf = provider.GetRequiredService<IHtml2PdfService>();
 ```
 
-## Documentation
+`AddHtml2Pdf()` registers:
 
-- **[Quick Start Guide](QUICK_START.md)** - Get up and running quickly
-- **[Comprehensive Guide](COMPREHENSIVE_GUIDE.md)** - Complete documentation with examples
-- **[API Reference](COMPREHENSIVE_GUIDE.md#api-reference)** - Detailed API documentation
+- `IBrowserPool`
+- `IHtmlGenerator`
+- `IPdfConverter`
+- `IHtml2PdfService`
+- `Html2PdfDiagnostics`
 
-## Real-World Examples
+For advanced registration control, `AddHtml2PdfWithLifetime(...)` lets you override service lifetimes.
 
-### Invoice Generation
+## Browser Provisioning
 
-```csharp
-var invoiceTemplate = @"
-<html>
-<body>
-    <h1>Invoice #@Model.InvoiceNumber</h1>
-    <p>Customer: @Model.CustomerName</p>
-    <p>Date: @Model.Date.ToString("yyyy-MM-dd")</p>
-    <table>
-        <tr><th>Item</th><th>Price</th></tr>
-        @foreach(var item in Model.Items)
-        {
-            <tr><td>@item.Name</td><td>$@item.Price.ToString("F2")</td></tr>
-        }
-    </table>
-    <p><strong>Total: $@Model.Total.ToString("F2")</strong></p>
-</body>
-</html>";
-
-var invoiceData = new
-{
-    InvoiceNumber = "INV-001",
-    CustomerName = "John Doe",
-    Date = DateTime.Now,
-    Items = new[] { /* ... */ },
-    Total = 150.00m
-};
-
-var result = await pdfService.GeneratePdfAsync(invoiceTemplate, invoiceData);
-```
-
-### Report Generation
-
-```csharp
-var reportTemplate = @"
-<html>
-<head>
-    <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-</head>
-<body>
-    <h1>Monthly Report</h1>
-    <div id='chart'></div>
-    <script>
-        // Chart.js code here
-    </script>
-</body>
-</html>";
-
-var result = await pdfService.GeneratePdfAsync(reportTemplate, reportData);
-```
-
-## Performance & Diagnostics
-
-The library includes built-in performance monitoring and diagnostics:
-
-```csharp
-// Enhanced logging shows detailed timing information
-[INFO] PDF Generation Started: Template | Operation ID: abc123
-[INFO] Template Processing: abc123 | Type: Razor | Duration: 45ms
-[INFO] HTML Generation Completed: abc123 | Duration: 67ms | HTML Length: 2048 chars
-[INFO] PDF Conversion Completed: abc123 | Duration: 890ms | PDF Size: 156723 bytes
-[INFO] Resource Usage: abc123 | Memory: 45 MB | Duration: 1002ms
-[INFO] PDF Generation Completed: Template | Operation ID: abc123 | Duration: 1002ms
-```
-
-## Configuration
-
-### Browser Pool
+By default, PuppeteerSharp can download Chromium on first use. For locked-down or pre-provisioned environments, configure the browser explicitly.
 
 ```csharp
 services.AddHtml2Pdf(options =>
 {
-    options.MinInstances = 1;        // Minimum browser instances
-    options.MaxInstances = 5;        // Maximum browser instances
-    options.MaxLifetimeMinutes = 60; // Max lifetime in minutes
-    options.AcquireTimeoutSeconds = 30; // Timeout to acquire instance
+    options.MinInstances = 1;
+    options.MaxInstances = 5;
+    options.MaxLifetimeMinutes = 60;
+    options.AcquireTimeoutSeconds = 30;
+    options.Headless = true;
+
+    options.SkipBrowserDownload = true;
+    options.ExecutablePath = @"/usr/bin/chromium";
+    options.BrowserCacheDirectory = "/var/cache/nast-html2pdf";
 });
 ```
 
-### PDF Options
+Provisioning guidance:
+
+- Keep `SkipBrowserDownload = false` if you want automatic Chromium provisioning.
+- Set `SkipBrowserDownload = true` only when you manage Chromium yourself.
+- Use `ExecutablePath` when your runtime image already contains Chrome/Chromium.
+- Use `BrowserCacheDirectory` when you want a predictable PuppeteerSharp cache location.
+- `AdditionalArgs` is available for environment-specific Chromium flags.
+
+## Explicit Opt-Ins
+
+These settings are intentionally not enabled unless you request them.
 
 ```csharp
+services.AddHtml2Pdf(options =>
+{
+    options.AllowInsecureCertificates = true;
+    options.DisableSandbox = true;
+    options.AdditionalArgs = ["--window-size=1280,720"];
+});
+```
+
+Tradeoffs:
+
+- `AllowInsecureCertificates = true` weakens TLS validation.
+- `DisableSandbox = true` reduces browser isolation and should be reserved for environments that cannot run Chromium with the sandbox enabled.
+
+## Realistic Examples
+
+### Generate from Raw HTML
+
+```csharp
+using Nast.Html2Pdf.Models;
+
+var html = """
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 32px; }
+        h1 { margin-bottom: 8px; }
+        .muted { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Quarterly Summary</h1>
+    <p class="muted">Generated from raw HTML</p>
+</body>
+</html>
+""";
+
 var pdfOptions = new PdfOptions
 {
     Format = "A4",
-    PrintBackground = true,
-    Margins = new PdfMargins
-    {
-        Top = "1cm",
-        Bottom = "1cm",
-        Left = "1cm",
-        Right = "1cm"
-    },
-    Header = new PdfHeaderFooter
-    {
-        Template = "<div>Header Content</div>",
-        Height = "1cm"
-    }
+    PrintBackground = true
 };
-```
 
-## Testing
+var result = await html2Pdf.GeneratePdfFromHtmlAsync(html, pdfOptions);
 
-The library includes comprehensive functional tests for real-world scenarios:
-
-```bash
-dotnet test
-```
-
-Run specific functional tests:
-
-```bash
-dotnet test --filter "RealWorldScenariosTests"
-```
-
-## Requirements
-
-- .NET 8.0 or later
-- Windows, macOS, or Linux
-- Minimum 512MB RAM available
-- Internet connection for initial Chromium download
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/NastMz/Html2Pdf/issues)
-- **Documentation**: [Comprehensive Guide](COMPREHENSIVE_GUIDE.md)
-- **NuGet Package**: [Nast.Html2Pdf](https://www.nuget.org/packages/Nast.Html2Pdf)
-
----
-
-**Made with ❤️ by [Kevin Martinez](https://github.com/NastMz)**
+if (result.Success && result.Data is not null)
 {
-Console.WriteLine($"Error: {result.ErrorMessage}");
+    await File.WriteAllBytesAsync("quarterly-summary.pdf", result.Data);
 }
+```
 
-````
-
-### Usage with Configuration
+### Generate from a Razor Template and Model
 
 ```csharp
 using Nast.Html2Pdf.Helpers;
 
-// Configure PDF options
-var pdfOptions = PdfOptionsHelper.A4Standard;
-pdfOptions.Landscape = true;
-pdfOptions.Header = new PdfHeaderFooter
+var template = """
+<!doctype html>
+<html>
+<body>
+    <h1>Invoice @Model.Number</h1>
+    <p>Customer: @Model.CustomerName</p>
+    <table>
+        <thead>
+            <tr><th>Description</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr><td>@item.Description</td><td>@item.Total.ToString("C")</td></tr>
+        }
+        </tbody>
+    </table>
+    <p><strong>Grand total: @Model.GrandTotal.ToString("C")</strong></p>
+</body>
+</html>
+""";
+
+var model = new
 {
-    Template = "<div style='text-align: center;'>My Company</div>",
-    Height = "2cm"
-};
-
-// Generate PDF
-var result = await html2PdfService.GeneratePdfAsync(htmlTemplate, model, pdfOptions);
-````
-
-### Usage with Dependency Injection
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Nast.Html2Pdf.Extensions;
-
-// Configure services
-var services = new ServiceCollection();
-services.AddLogging();
-services.AddHtml2Pdf(options =>
-{
-    options.MinInstances = 2;
-    options.MaxInstances = 10;
-    options.MaxLifetimeMinutes = 60;
-    options.AcquireTimeoutSeconds = 30;
-    options.Headless = true;
-    options.AdditionalArgs = new[] { "--no-sandbox", "--disable-dev-shm-usage" };
-});
-
-var serviceProvider = services.BuildServiceProvider();
-var html2PdfService = serviceProvider.GetRequiredService<IHtml2PdfService>();
-```
-
-## Usage Examples
-
-### Generate Invoice
-
-```csharp
-var invoiceTemplate = @"
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Invoice</title>
-    </head>
-    <body>
-        <div class='invoice-header'>
-            <h1>INVOICE</h1>
-            <p>Number: @Model.Number</p>
-            <p>Date: @Model.Date.ToString(""dd/MM/yyyy"")</p>
-        </div>
-
-        <div class='invoice-details'>
-            <h3>Customer:</h3>
-            <p>@Model.Customer.Name</p>
-            <p>@Model.Customer.Address</p>
-        </div>
-
-        <table class='invoice-table'>
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach(var item in Model.Items)
-                {
-                    <tr>
-                        <td>@item.Description</td>
-                        <td>@item.Quantity</td>
-                        <td>@item.Price.ToString(""C"")</td>
-                        <td>@item.Total.ToString(""C"")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-
-        <div class='invoice-total'>
-            <h3>Total: @Model.Total.ToString(""C"")</h3>
-        </div>
-    </body>
-    </html>";
-
-var invoice = new
-{
-    Number = "INV-001",
-    Date = DateTime.Now,
-    Customer = new { Name = "John Doe", Address = "123 Main St, City" },
+    Number = "INV-2026-001",
+    CustomerName = "Ada Lovelace",
     Items = new[]
     {
-        new { Description = "Product 1", Quantity = 2, Price = 100.00m, Total = 200.00m },
-        new { Description = "Product 2", Quantity = 1, Price = 150.00m, Total = 150.00m }
+        new { Description = "Implementation work", Total = 250.00m },
+        new { Description = "Support", Total = 40.00m }
     },
-    Total = 350.00m
+    GrandTotal = 290.00m
 };
 
-var result = await html2PdfService.GeneratePdfAsync(
-    invoiceTemplate,
-    invoice,
+var result = await html2Pdf.GeneratePdfAsync(
+    template,
+    model,
     PdfOptionsHelper.Invoice,
-    HtmlOptionsHelper.Invoice
-);
+    HtmlOptionsHelper.Invoice);
 ```
 
-### Generate Report
+### Generate from a URL
 
 ```csharp
-var reportTemplate = @"
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Sales Report</title>
-    </head>
-    <body>
-        <div class='report-header'>
-            <h1>SALES REPORT</h1>
-            <p>Period: @Model.StartDate.ToString(""dd/MM/yyyy"") - @Model.EndDate.ToString(""dd/MM/yyyy"")</p>
-        </div>
+using Nast.Html2Pdf.Models;
 
-        <div class='report-summary'>
-            <h3>Summary</h3>
-            <p>Total Sales: @Model.TotalSales.ToString(""C"")</p>
-            <p>Number of Transactions: @Model.TransactionCount</p>
-        </div>
-
-        <div class='report-section'>
-            <h3>Sales Detail</h3>
-            <table class='report-table'>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Customer</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach(var sale in Model.Sales)
-                    {
-                        <tr>
-                            <td>@sale.Date.ToString(""dd/MM/yyyy"")</td>
-                            <td>@sale.Customer</td>
-                            <td>@sale.Product</td>
-                            <td>@sale.Quantity</td>
-                            <td>@sale.Amount.ToString(""C"")</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </body>
-    </html>";
-
-var report = new
-{
-    StartDate = DateTime.Now.AddDays(-30),
-    EndDate = DateTime.Now,
-    TotalSales = 5000.00m,
-    TransactionCount = 25,
-    Sales = new[]
+var result = await html2Pdf.GeneratePdfFromUrlAsync(
+    "https://example.com/report",
+    new PdfOptions
     {
-        new { Date = DateTime.Now.AddDays(-5), Customer = "John Doe", Product = "Product A", Quantity = 2, Amount = 200.00m },
-        new { Date = DateTime.Now.AddDays(-3), Customer = "Jane Smith", Product = "Product B", Quantity = 1, Amount = 150.00m },
-        // more data...
-    }
-};
-
-var result = await html2PdfService.GeneratePdfAsync(
-    reportTemplate,
-    report,
-    PdfOptionsHelper.Report,
-    HtmlOptionsHelper.Report
-);
+        Format = "Letter",
+        PrintBackground = true,
+        WaitForImages = true,
+        TimeoutMs = 30000
+    });
 ```
 
-## Predefined Configurations
-
-### PDF Options
+### Non-DI Usage
 
 ```csharp
-// Available configurations
-var a4Standard = PdfOptionsHelper.A4Standard;
-var a4Landscape = PdfOptionsHelper.A4Landscape;
-var letterStandard = PdfOptionsHelper.LetterStandard;
-var noMargins = PdfOptionsHelper.NoMargins;
-var invoice = PdfOptionsHelper.Invoice;
-var report = PdfOptionsHelper.Report;
+using Nast.Html2Pdf;
+using Nast.Html2Pdf.Services;
 
-// Custom configuration
-var custom = PdfOptionsHelper.WithHeaderAndFooter(
-    headerTemplate: "<div>My Header</div>",
-    footerTemplate: "<div>My Footer</div>"
-);
-
-// Custom size
-var customSize = PdfOptionsHelper.WithCustomSize(8.5f, 11f); // Letter size
-```
-
-### HTML Options
-
-```csharp
-// Available configurations
-var standard = HtmlOptionsHelper.Standard;
-var invoice = HtmlOptionsHelper.Invoice;
-var report = HtmlOptionsHelper.Report;
-
-// Custom CSS
-var withCustomCss = HtmlOptionsHelper.WithCustomCss(@"
-    body { font-family: 'Times New Roman', serif; }
-    .highlight { background-color: yellow; }
-");
-```
-
-## Extension Methods
-
-```csharp
-// Save directly to file
-await html2PdfService.GeneratePdfToFileAsync(template, model, "output.pdf");
-
-// Get as Stream
-var stream = await html2PdfService.GeneratePdfToStreamAsync(template, model);
-
-// From template file
-await html2PdfService.GeneratePdfFromFileToFileAsync("template.html", model, "output.pdf");
-
-// From URL
-await html2PdfService.GeneratePdfFromUrlToFileAsync("https://example.com", "output.pdf");
-```
-
-## Error Handling
-
-```csharp
-var result = await html2PdfService.GeneratePdfAsync(template, model);
-
-if (result.Success)
+var html2Pdf = Html2PdfFactory.Create(new BrowserPoolOptions
 {
-    Console.WriteLine($"PDF generated successfully in {result.Duration.TotalMilliseconds}ms");
-    Console.WriteLine($"Size: {result.Size} bytes");
-
-    // Use result.Data
-    File.WriteAllBytes("output.pdf", result.Data);
-}
-else
-{
-    Console.WriteLine($"Error: {result.ErrorMessage}");
-
-    if (result.Exception != null)
-    {
-        Console.WriteLine($"Exception: {result.Exception.Message}");
-    }
-}
-```
-
-## Advanced Configuration
-
-### Browser Pool Settings
-
-```csharp
-services.AddHtml2Pdf(options =>
-{
-    options.MinInstances = 2;          // Minimum 2 instances
-    options.MaxInstances = 10;         // Maximum 10 instances
-    options.MaxLifetimeMinutes = 60;   // 1 hour lifetime
-    options.AcquireTimeoutSeconds = 30; // 30 seconds timeout
-    options.Headless = true;           // Run without GUI
-    options.AdditionalArgs = new[] { "--no-sandbox", "--disable-dev-shm-usage" };
+    MaxInstances = 2,
+    AcquireTimeoutSeconds = 15
 });
+
+var result = await html2Pdf.GeneratePdfFromHtmlAsync("<html><body><h1>Hello</h1></body></html>");
 ```
 
-### Lifetime Configuration
+## PDF and HTML Configuration
+
+Relevant models and helpers:
+
+- `PdfOptions`, `PdfMargins`, `PdfHeaderFooter`
+- `HtmlGenerationOptions`
+- `PdfOptionsHelper` presets like `A4Standard`, `Invoice`, `Report`
+- `HtmlOptionsHelper` presets like `Standard`, `Invoice`, `Report`
+
+Example:
 
 ```csharp
-services.AddHtml2PdfWithLifetime(
-    configureBrowserPool: options => { /* configuration */ },
-    browserPoolLifetime: ServiceLifetime.Singleton,
-    serviceLifetime: ServiceLifetime.Scoped
-);
-```
+using Nast.Html2Pdf.Models;
 
-## Advanced Templates
-
-### With External Resources
-
-```csharp
-var templateWithResources = @"
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
-            body { font-family: 'Roboto', sans-serif; }
-        </style>
-    </head>
-    <body>
-        <img src='https://via.placeholder.com/300x200' alt='Image' />
-        <h1>Title with external font</h1>
-    </body>
-    </html>";
-
-var options = new PdfOptions
+var pdfOptions = new PdfOptions
 {
-    WaitForImages = true,  // Wait for images to load
-    TimeoutMs = 30000     // 30 seconds timeout
+    Format = "A4",
+    Landscape = false,
+    PrintBackground = true,
+    Margins = new PdfMargins
+    {
+        Top = "2cm",
+        Bottom = "2cm",
+        Left = "1.5cm",
+        Right = "1.5cm"
+    },
+    Header = new PdfHeaderFooter
+    {
+        Template = "<div style='font-size:10px;width:100%;text-align:center;'>Quarterly Summary</div>",
+        Height = "1cm"
+    }
+};
+
+var htmlOptions = new HtmlGenerationOptions
+{
+    BasePath = AppContext.BaseDirectory,
+    InlineStyles = true,
+    IncludeViewport = true,
+    AdditionalCss = "body { color: #222; }"
 };
 ```
 
-### With Page Breaks
+## Testing and CI
 
-```csharp
-var templateWithPageBreaks = @"
-    <style>
-        .page-break { page-break-after: always; }
-    </style>
+- Keep tests tightly scoped when touching pool behavior or documentation assertions.
+- Hosted Linux CI may require disabling the Chromium sandbox for the test process only.
+- This repository uses `HTML2PDF_TEST_DISABLE_SANDBOX=true` in GitHub Actions test runs so browser-based tests can execute on hosted runners.
+- That CI opt-in does not change the library default: production code still keeps the sandbox enabled unless `DisableSandbox` is explicitly set.
 
-    <div>
-        <h1>Page 1</h1>
-        <p>Content of the first page</p>
-    </div>
+Examples:
 
-    <div class='page-break'></div>
-
-    <div>
-        <h1>Page 2</h1>
-        <p>Content of the second page</p>
-    </div>";
+```bash
+dotnet test Tests/Nast.Html2Pdf.Tests.csproj --filter "FullyQualifiedName~BrowserPoolTests"
 ```
+
+```bash
+dotnet test Tests/Nast.Html2Pdf.Tests.csproj --filter "FullyQualifiedName~ProductionHardeningReleaseTests"
+```
+
+## Documentation Links
+
+- [Quick Start](QUICK_START.md)
+- [Comprehensive Guide](COMPREHENSIVE_GUIDE.md)
+- [Changelog](CHANGELOG.md)
+- [NuGet package](https://www.nuget.org/packages/Nast.Html2Pdf)
+- [GitHub issues](https://github.com/NastMz/Html2Pdf/issues)
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+[MIT](LICENSE)

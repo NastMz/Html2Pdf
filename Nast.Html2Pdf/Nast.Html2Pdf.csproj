@@ -8,7 +8,7 @@
     
     <!-- NuGet Package Information -->
     <PackageId>Nast.Html2Pdf</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>Kevin Martinez</Authors>
     <Company>Nast</Company>
     <Product>Nast.Html2Pdf</Product>

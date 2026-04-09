@@ -402,7 +402,7 @@ namespace Nast.Html2Pdf.Tests.Services
             var secondPage = CreatePageMock(browserMock.Object, "about:blank");
             firstPage.SetupGet(x => x.IsClosed).Returns(() => firstPageClosed);
             var pageQueue = new Queue<IPage>(new[] { firstPage.Object, secondPage.Object });
-            var closedPages = 0;
+            var createdPages = 0;
 
             await using var pool = new BrowserPool(
                 new BrowserPoolOptions { MaxInstances = 1, AcquireTimeoutSeconds = 1 },
@@ -411,12 +411,12 @@ namespace Nast.Html2Pdf.Tests.Services
                 {
                     EnsureBrowserProvisionedAsync = _ => Task.CompletedTask,
                     LaunchBrowserAsync = (_, _) => Task.FromResult(browserMock.Object),
-                    CreatePageAsync = _ => Task.FromResult(pageQueue.Dequeue()),
-                    ClosePageAsync = _ =>
+                    CreatePageAsync = _ =>
                     {
-                        closedPages++;
-                        return Task.CompletedTask;
+                        createdPages++;
+                        return Task.FromResult(pageQueue.Dequeue());
                     },
+                    ClosePageAsync = _ => Task.CompletedTask,
                     CloseBrowserAsync = _ => Task.CompletedTask
                 });
 
@@ -426,8 +426,9 @@ namespace Nast.Html2Pdf.Tests.Services
 
             var replacementPage = await pool.GetPageAsync();
 
-            closedPages.ShouldBe(1);
+            createdPages.ShouldBe(2);
             replacementPage.ShouldNotBeSameAs(originalPage);
+            replacementPage.Page.ShouldBeSameAs(secondPage.Object);
         }
 
         [Fact]
