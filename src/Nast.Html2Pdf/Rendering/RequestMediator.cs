@@ -39,6 +39,7 @@ internal sealed class RequestMediator
     private readonly ConcurrentQueue<ResourceIssue> _issues = new();
     private int _inFlight;
     private long _lastActivity = Stopwatch.GetTimestamp();
+    private readonly ConcurrentDictionary<string, byte> _handledFailures = new(StringComparer.Ordinal);
     private volatile bool _navigationLocked;
 
     public RequestMediator(RenderEnvironment environment, PreparedDocument document, string operationId, bool measurementOnly, CancellationToken cancellationToken)
@@ -61,6 +62,8 @@ internal sealed class RequestMediator
 
     /// <summary>After the initial load, the main frame may not navigate elsewhere.</summary>
     public void LockNavigation() => _navigationLocked = true;
+
+    public bool NavigationLocked => _navigationLocked;
 
     public void OnRequest(object? sender, RequestEventArgs e)
     {
@@ -90,19 +93,23 @@ internal sealed class RequestMediator
     private async Task DispatchAsync(IRequest request)
     {
         var url = request.Url;
-        if (url.StartsWith("data:", StringComparison.OrdinalIgnoreCase) || url.StartsWith("blob:", StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
-        {
-            // Self-contained; no network or file access involved.
-            await request.ContinueAsync().ConfigureAwait(false);
-            return;
-        }
-
         var isMainNavigation = request.IsNavigationRequest && request.Frame?.ParentFrame is null;
         var required = !OptionalTypes.Contains(request.ResourceType);
         if (isMainNavigation && _navigationLocked)
         {
-            await request.AbortAsync(RequestAbortErrorCode.BlockedByClient).ConfigureAwait(false);
+            // Once the document has been answered, the main frame may not be replaced (meta refresh, location changes,
+            // form submissions). Aborting would commit an error page; 204 No Content keeps the current document.
+            _handledFailures.TryAdd(request.Id, 0);
+            await request.RespondAsync(new ResponseData { Status = HttpStatusCode.NoContent, BodyData = [] }).ConfigureAwait(false);
+            return;
+        }
+
+        if (url.StartsWith("data:", StringComparison.OrdinalIgnoreCase) || url.StartsWith("blob:", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
+        {
+            // Self-contained; no network or file access involved.
+            LockIfMainDocument(request, isMainNavigation, 200);
+            await request.ContinueAsync().ConfigureAwait(false);
             return;
         }
 
@@ -120,7 +127,7 @@ internal sealed class RequestMediator
 
         if (_measurementOnly)
         {
-            await DenyAsync(request, isMainNavigation, true, url, "header and footer content must not reference external resources; embed images as data: URIs").ConfigureAwait(false);
+            await DenyAsync(request, isMainNavigation, required, url, "header and footer content must not reference external resources; embed images as data: URIs").ConfigureAwait(false);
             return;
         }
 
@@ -220,8 +227,48 @@ internal sealed class RequestMediator
         await RespondAsync(request, result.Status, headers.Get("content-type"), result.Body!, extra).ConfigureAwait(false);
     }
 
+    private void LockIfMainDocument(IRequest request, bool isMainNavigation, int status)
+    {
+        // Redirect hops of the initial navigation are allowed; anything after the final response is not.
+        if (isMainNavigation && !_navigationLocked && status is not (>= 300 and < 400))
+        {
+            MainDocumentUrl = request.Url.Split('#')[0];
+            MainDocumentStatus = status;
+            _navigationLocked = true;
+        }
+    }
+
+    /// <summary>URL of the document that was finally served to the main frame.</summary>
+    public string? MainDocumentUrl { get; private set; }
+
+    /// <summary>HTTP status of the document that was finally served to the main frame.</summary>
+    public int? MainDocumentStatus { get; private set; }
+
+    /// <summary>
+    /// Records required requests that failed inside the browser after (or without) mediation, for example a redirect
+    /// to a forbidden scheme or a CORS failure, so a conversion never succeeds with a silently missing resource.
+    /// </summary>
+    public void OnRequestFailed(object? sender, RequestEventArgs e)
+    {
+        var request = e.Request;
+        if (_handledFailures.ContainsKey(request.Id) || OptionalTypes.Contains(request.ResourceType)
+            || (!_environment.AllowScripts && request.ResourceType == ResourceType.Script))
+        {
+            return;
+        }
+
+        var isMainNavigation = request.IsNavigationRequest && request.Frame?.ParentFrame is null;
+        if (isMainNavigation && _navigationLocked)
+        {
+            return;
+        }
+
+        Record(isMainNavigation, ResourceDisposition.Unavailable, true, request.Url, $"load failed: {request.FailureText ?? "unknown error"}");
+    }
+
     private async Task RespondAsync(IRequest request, int status, string? contentType, byte[] body, Dictionary<string, object>? headers)
     {
+        LockIfMainDocument(request, request.IsNavigationRequest && request.Frame?.ParentFrame is null, status);
         headers ??= [];
         if (!_environment.AllowScripts)
         {
@@ -241,12 +288,14 @@ internal sealed class RequestMediator
 
     private async Task DenyAsync(IRequest request, bool isMainNavigation, bool required, string url, string reason)
     {
+        _handledFailures.TryAdd(request.Id, 0);
         Record(isMainNavigation, ResourceDisposition.Denied, required, url, reason);
         await request.AbortAsync(RequestAbortErrorCode.BlockedByClient).ConfigureAwait(false);
     }
 
     private async Task FailAsync(IRequest request, bool isMainNavigation, bool required, string url, string reason)
     {
+        _handledFailures.TryAdd(request.Id, 0);
         Record(isMainNavigation, ResourceDisposition.Unavailable, required, url, reason);
         await request.AbortAsync(RequestAbortErrorCode.Failed).ConfigureAwait(false);
     }

@@ -46,11 +46,17 @@ internal static class RenderSession
         CancellationToken cancellationToken)
     {
         IBrowserContext? context = null;
+        ICDPSession? browserSession = null;
         try
         {
             stage.Set(RenderStage.Starting);
             context = await browser.Browser.CreateBrowserContextAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-            await DenyDownloadsAsync(browser.Browser, context, cancellationToken).ConfigureAwait(false);
+            browserSession = await browser.Browser.CreateCDPSessionAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            await browserSession.SendAsync("Browser.setDownloadBehavior", new Dictionary<string, object>
+            {
+                ["behavior"] = "deny",
+                ["browserContextId"] = context.Id,
+            }).WaitAsync(cancellationToken).ConfigureAwait(false);
 
             if (document.BandMeasurementHtml is not null)
             {
@@ -58,16 +64,26 @@ internal static class RenderSession
             }
 
             var page = await context.NewPageAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            // Popups (window.open, target=_blank) are not mediated and can stall printing; close them immediately.
+            var session = browserSession;
+            context.TargetCreated += (_, e) =>
+            {
+                // Pages created by the library have no opener; anything opened by a document does.
+                if (e.Target.Type == TargetType.Page && e.Target.Opener is not null)
+                {
+                    _ = CloseTargetAsync(session, e.TargetInfo.TargetId);
+                }
+            };
             var crashed = false;
             page.Error += (_, _) => crashed = true;
             var mediator = new RequestMediator(environment, document, operationId, measurementOnly: false, cancellationToken);
             await ConfigurePageAsync(page, mediator, environment.AllowScripts, geometry.Options.MediaType, cancellationToken).ConfigureAwait(false);
 
             stage.Set(RenderStage.Loading);
-            IResponse? response;
             try
             {
-                response = await page.GoToAsync(document.DocumentUrl.AbsoluteUri, new NavigationOptions
+                await page.GoToAsync(document.DocumentUrl.AbsoluteUri, new NavigationOptions
                 {
                     WaitUntil = [WaitUntilNavigation.Load],
                     Timeout = 0,
@@ -76,6 +92,12 @@ internal static class RenderSession
             catch (NavigationException) when (mediator.MainFailure is not null)
             {
                 throw mediator.MainFailure;
+            }
+            catch (NavigationException) when (mediator.MainDocumentStatus is >= 200 and < 400 && !cancellationToken.IsCancellationRequested
+                                              && browser.Browser.IsConnected && !crashed)
+            {
+                // The document itself was served; a later navigation attempt (blocked by the mediator) aborted the
+                // navigation watcher. Readiness polling below waits for the document's own load.
             }
             catch (NavigationException) when (!cancellationToken.IsCancellationRequested && browser.Browser.IsConnected && !crashed)
             {
@@ -87,10 +109,9 @@ internal static class RenderSession
                 throw mediator.MainFailure;
             }
 
-            if (response is null || (int)response.Status >= 400)
+            if (mediator.MainDocumentStatus is not { } status || status >= 400)
             {
-                throw new PdfConversionException(PdfConversionError.ResourceUnavailable,
-                    $"The document could not be loaded (HTTP {(response is null ? "no response" : ((int)response.Status).ToString(System.Globalization.CultureInfo.InvariantCulture))}).");
+                throw new PdfConversionException(PdfConversionError.ResourceUnavailable, "The document could not be loaded.");
             }
 
             mediator.LockNavigation();
@@ -123,6 +144,7 @@ internal static class RenderSession
             }
 
             ThrowIfCrashed(crashed);
+            await EnsureOriginalDocumentAsync(page, mediator, cancellationToken).ConfigureAwait(false);
             ValidatePdf(pdf);
 
             // Requests that started after the readiness check (rare) must still respect the policy.
@@ -135,6 +157,18 @@ internal static class RenderSession
             {
                 await CloseContextAsync(environment, browser, context).ConfigureAwait(false);
             }
+
+            if (browserSession is not null)
+            {
+                try
+                {
+                    await browserSession.DetachAsync().WaitAsync(CleanupTimeout, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // The session ends with the browser.
+                }
+            }
         }
     }
 
@@ -143,30 +177,20 @@ internal static class RenderSession
         await page.SetJavaScriptEnabledAsync(allowScripts).WaitAsync(cancellationToken).ConfigureAwait(false);
         await page.EmulateMediaTypeAsync(mediaType == CssMediaType.Print ? MediaType.Print : MediaType.Screen).WaitAsync(cancellationToken).ConfigureAwait(false);
         page.Request += mediator.OnRequest;
+        page.RequestFailed += mediator.OnRequestFailed;
         await page.SetRequestInterceptionAsync(true).WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task DenyDownloadsAsync(IBrowser browser, IBrowserContext context, CancellationToken cancellationToken)
+    private static async Task CloseTargetAsync(ICDPSession session, string targetId)
     {
-        var session = await browser.CreateCDPSessionAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await session.SendAsync("Browser.setDownloadBehavior", new Dictionary<string, object>
-            {
-                ["behavior"] = "deny",
-                ["browserContextId"] = context.Id,
-            }).WaitAsync(cancellationToken).ConfigureAwait(false);
+            await session.SendAsync("Target.closeTarget", new Dictionary<string, object> { ["targetId"] = targetId })
+                .WaitAsync(CleanupTimeout, CancellationToken.None).ConfigureAwait(false);
         }
-        finally
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            try
-            {
-                await session.DetachAsync().WaitAsync(CleanupTimeout, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                // Session already gone.
-            }
+            // Already closed together with the context.
         }
     }
 
@@ -184,7 +208,7 @@ internal static class RenderSession
             await page.GoToAsync(url.AbsoluteUri, new NavigationOptions { WaitUntil = [WaitUntilNavigation.Load], Timeout = 0 })
                 .WaitAsync(cancellationToken).ConfigureAwait(false);
             await PollAsync(page, "document.fonts.status === 'loaded' && Array.from(document.images).every(i => i.complete)", cancellationToken).ConfigureAwait(false);
-            if (mediator.Issues.FirstOrDefault() is { } issue)
+            if (mediator.Issues.FirstOrDefault(i => i.Required) is { } issue)
             {
                 throw new PdfConversionException(PdfConversionError.InvalidRequest, $"Header/footer content is not self-contained: {issue.Resource} ({issue.Reason}).");
             }
@@ -281,6 +305,19 @@ internal static class RenderSession
             {
                 await Task.Delay(PollInterval, cancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Navigations that never reach the network (for example to <c>about:blank</c>) cannot be intercepted. Rather than
+    /// printing a replaced document, the conversion fails if the main frame no longer shows the document that was served.
+    /// </summary>
+    private static async Task EnsureOriginalDocumentAsync(IPage page, RequestMediator mediator, CancellationToken cancellationToken)
+    {
+        var location = await page.EvaluateExpressionAsync<string>("location.href.split('#')[0]").WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(location, mediator.MainDocumentUrl, StringComparison.Ordinal))
+        {
+            throw new PdfConversionException(PdfConversionError.RenderingFailed, "The document navigated away from itself; navigation is not permitted during conversion.");
         }
     }
 
