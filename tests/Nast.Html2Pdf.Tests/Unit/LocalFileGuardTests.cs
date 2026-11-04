@@ -127,6 +127,18 @@ public sealed class LocalFileGuardTests : IDisposable
     }
 
     [Fact]
+    public void The_path_of_an_open_handle_is_reported_on_every_platform()
+    {
+        // Exercises the platform-specific native call (/proc on Linux, fcntl(F_GETPATH) on macOS,
+        // GetFinalPathNameByHandle on Windows) that defeats link swaps between check and use.
+        var file = _root.Combine("assets/logo.svg");
+        using var handle = File.OpenHandle(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var path = LocalFileGuard.GetHandlePath(handle);
+        Assert.NotNull(path);
+        Assert.Equal(LocalFileGuard.ResolveRealPath(file), path, ignoreCase: !OperatingSystem.IsLinux());
+    }
+
+    [Fact]
     public void Undeclared_html_encodings_default_to_utf8()
     {
         Assert.Equal("text/html; charset=utf-8", ContentTypes.HtmlContentType("<p>hi</p>"u8));

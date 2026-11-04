@@ -391,7 +391,7 @@ internal sealed class LocalFileGuard
         return current;
     }
 
-    private static string? GetHandlePath(SafeFileHandle handle)
+    internal static string? GetHandlePath(SafeFileHandle handle)
     {
         try
         {
@@ -403,10 +403,20 @@ internal sealed class LocalFileGuard
 
             if (OperatingSystem.IsMacOS())
             {
-                var buffer = new byte[1024];
-                return NativeMethods.fcntl(handle, NativeMethods.F_GETPATH, buffer) == -1
-                    ? null
-                    : Encoding.UTF8.GetString(buffer, 0, Array.IndexOf(buffer, (byte)0) is var n and >= 0 ? n : buffer.Length);
+                // fcntl is variadic. On Apple arm64 variadic arguments are passed on the stack, so the six remaining
+                // argument registers are padded and the buffer becomes the first stack argument. On x64 the regular
+                // calling convention applies.
+                var buffer = new byte[NativeMethods.MaxPathLength];
+                var result = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? NativeMethods.FcntlArm64(handle, NativeMethods.F_GETPATH, 0, 0, 0, 0, 0, 0, buffer)
+                    : NativeMethods.Fcntl(handle, NativeMethods.F_GETPATH, buffer);
+                if (result == -1)
+                {
+                    return null;
+                }
+
+                var length = Array.IndexOf(buffer, (byte)0);
+                return length > 0 ? Encoding.UTF8.GetString(buffer, 0, length) : null;
             }
 
             if (IsWindows)
@@ -438,9 +448,13 @@ internal sealed class LocalFileGuard
     private static class NativeMethods
     {
         public const int F_GETPATH = 50;
+        public const int MaxPathLength = 1024; // MAXPATHLEN on macOS
 
-        [DllImport("libc", SetLastError = true)]
-        public static extern int fcntl(SafeFileHandle fd, int cmd, byte[] buffer);
+        [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+        public static extern int Fcntl(SafeFileHandle fd, int cmd, byte[] buffer);
+
+        [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+        public static extern int FcntlArm64(SafeFileHandle fd, int cmd, nint pad2, nint pad3, nint pad4, nint pad5, nint pad6, nint pad7, byte[] buffer);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, [Out] char[] path, uint length, uint flags);
