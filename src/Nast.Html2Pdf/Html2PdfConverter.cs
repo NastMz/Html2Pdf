@@ -439,9 +439,13 @@ public sealed class Html2PdfConverter : IHtml2PdfConverter, IAsyncDisposable, ID
                 warnings.AddRange(attemptWarnings);
                 return pdf;
             }
-            catch (Exception ex) when (!token.IsCancellationRequested && IsInfrastructureFailure(ex, lease.Instance))
+            catch (Exception ex) when (!token.IsCancellationRequested && ClassifyFailure(ex, lease.Instance) is { } failure)
             {
-                _host.MarkUnhealthy(lease.Instance, "renderer infrastructure failure");
+                if (failure == InfrastructureFailure.Browser)
+                {
+                    _host.MarkUnhealthy(lease.Instance, "the browser failed during rendering");
+                }
+
                 if (attempt >= _maxAttempts)
                 {
                     Log.FailureDetail(_logger, operationId, ex);
@@ -449,28 +453,48 @@ public sealed class Html2PdfConverter : IHtml2PdfConverter, IAsyncDisposable, ID
                 }
 
                 Log.Retrying(_logger, operationId, ex.GetType().Name, attempt);
+                Log.FailureDetail(_logger, operationId, ex);
                 _metrics.Retried();
-                warnings.Add(new ConversionWarning(ConversionWarningCode.Retried, "The browser failed during rendering; the conversion was retried in a new browser context."));
+                warnings.Add(new ConversionWarning(ConversionWarningCode.Retried, "A renderer infrastructure failure occurred; the conversion was retried in a new browser context."));
             }
         }
     }
 
-    private static bool IsInfrastructureFailure(Exception ex, BrowserInstance instance)
+    private enum InfrastructureFailure
     {
-        if (instance.Disconnected || !instance.Browser.IsConnected)
+        /// <summary>The browser process or its connection failed; the browser is replaced.</summary>
+        Browser,
+
+        /// <summary>A DevTools session or execution context vanished mid-command (a known protocol race); the browser is healthy.</summary>
+        Session,
+    }
+
+    private static readonly string[] TransientProtocolMessages =
+    [
+        "Target closed", "Session closed", "Connection closed", "Session with given id not found", "No target with given id",
+        "Execution context was destroyed", "Cannot find context with specified id", "Inspected target navigated or closed",
+    ];
+
+    /// <summary>
+    /// Only infrastructure failures are retried. Failures attributable to the request (policy, missing resources,
+    /// templates, layout, deadlines) are <see cref="PdfConversionException"/>s and never retried.
+    /// </summary>
+    private static InfrastructureFailure? ClassifyFailure(Exception ex, BrowserInstance instance)
+    {
+        if (instance.Disconnected || !instance.Browser.IsConnected || ex is ProcessException)
         {
-            return true;
+            return InfrastructureFailure.Browser;
         }
 
         if (ex is PdfConversionException)
         {
-            return false;
+            return null;
         }
 
-        return ex is TargetClosedException or ProcessException
-            || ex is PuppeteerException && (ex.Message.Contains("Target closed", StringComparison.OrdinalIgnoreCase)
-                                            || ex.Message.Contains("Session closed", StringComparison.OrdinalIgnoreCase)
-                                            || ex.Message.Contains("Connection closed", StringComparison.OrdinalIgnoreCase));
+        return ex is TargetClosedException
+               || (ex is PuppeteerException && TransientProtocolMessages.Any(m => ex.Message.Contains(m, StringComparison.OrdinalIgnoreCase)))
+            ? InfrastructureFailure.Session
+            : null;
     }
 
     private PdfConversionException Translate(Exception ex, RenderStage stage, TimeSpan timeout, bool explicitReadiness)

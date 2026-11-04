@@ -32,6 +32,22 @@ internal sealed class TestServer : IDisposable
 
     public int MaxConcurrent => Volatile.Read(ref _maxConcurrent);
 
+    public async Task WaitForRequestAsync(string pathAndQuery, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!Requests.Any(r => r.PathAndQuery == pathAndQuery))
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException($"The server did not receive {pathAndQuery}.");
+            }
+
+            await Task.Delay(20);
+        }
+    }
+
+    public void ResetMaxConcurrent() => Volatile.Write(ref _maxConcurrent, 0);
+
     public void Map(string path, Func<HttpListenerContext, Task> handler) => _routes[path] = handler;
 
     public void MapText(string path, string contentType, string body, int status = 200, IDictionary<string, string>? headers = null)

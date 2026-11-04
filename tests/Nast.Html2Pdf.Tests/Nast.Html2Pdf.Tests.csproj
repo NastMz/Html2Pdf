@@ -5,7 +5,7 @@
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007;CA1861;CA1849;CA1031;CA5394;CA1307;CA1310;CA1305;CA1822;CA2000;CA1063;CA1816;xUnit1051;CA2016</NoWarn>
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007;CA1861;CA1849;CA1031;CA5394;CA1307;CA1310;CA1305;CA1822;CA2000;CA1063;CA1816;xUnit1051;CA2016;xUnit2029</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

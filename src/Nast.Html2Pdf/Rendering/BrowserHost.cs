@@ -24,6 +24,7 @@ internal sealed partial class BrowserHost : IAsyncDisposable
     private readonly SemaphoreSlim _launchLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly List<BrowserInstance> _retiring = [];
+    private readonly List<Task> _abandonedLaunches = [];
     private readonly string _profileRoot;
     private BrowserInstance? _current;
     private bool _disposed;
@@ -166,6 +167,7 @@ internal sealed partial class BrowserHost : IAsyncDisposable
     /// <summary>Retires a browser that misbehaved (for example a context that could not be closed) and kills it once idle.</summary>
     public void MarkUnhealthy(BrowserInstance instance, string reason)
     {
+        LastFailureAt = DateTimeOffset.UtcNow;
         lock (_sync)
         {
             instance.Unhealthy = true;
@@ -254,9 +256,11 @@ internal sealed partial class BrowserHost : IAsyncDisposable
         };
 
         IBrowser? browser = null;
+        Task<IBrowser>? launch = null;
         try
         {
-            browser = await Puppeteer.LaunchAsync(launchOptions).WaitAsync(_options.LaunchTimeout, cancellationToken).ConfigureAwait(false);
+            launch = Puppeteer.LaunchAsync(launchOptions);
+            browser = await launch.WaitAsync(_options.LaunchTimeout, cancellationToken).ConfigureAwait(false);
             var version = await browser.GetVersionAsync().WaitAsync(_options.LaunchTimeout, cancellationToken).ConfigureAwait(false);
             var major = ParseMajorVersion(version);
             if (major < MinimumSupportedMajorVersion)
@@ -286,6 +290,11 @@ internal sealed partial class BrowserHost : IAsyncDisposable
             {
                 await new BrowserInstance(browser, profile, 0).CloseAsync(_logger).ConfigureAwait(false);
             }
+            else if (launch is { IsCompleted: false })
+            {
+                // We stopped waiting, but the launch continues; close whatever it eventually produces.
+                AbandonLaunch(launch, profile);
+            }
             else
             {
                 BrowserInstance.DeleteProfile(profile);
@@ -313,6 +322,41 @@ internal sealed partial class BrowserHost : IAsyncDisposable
                 : ex is TimeoutException ? " The browser did not start within Browser.LaunchTimeout." : string.Empty;
             throw new PdfConversionException(PdfConversionError.RendererUnavailable, "Chromium failed to start." + hint);
         }
+    }
+
+    private void AbandonLaunch(Task<IBrowser> launch, string profile)
+    {
+        var cleanup = launch.ContinueWith(
+            async completed =>
+            {
+                if (completed.IsCompletedSuccessfully)
+                {
+                    await new BrowserInstance(completed.Result, profile, 0).CloseAsync(_logger).ConfigureAwait(false);
+                }
+                else
+                {
+                    BrowserInstance.DeleteProfile(profile);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default).Unwrap();
+        lock (_sync)
+        {
+            _abandonedLaunches.Add(cleanup);
+        }
+
+        _ = cleanup.ContinueWith(
+            t =>
+            {
+                lock (_sync)
+                {
+                    _abandonedLaunches.Remove(t);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default);
     }
 
     internal static string[] LaunchArguments(bool disableSandbox)
@@ -455,9 +499,21 @@ internal sealed partial class BrowserHost : IAsyncDisposable
         }
 
         await Task.WhenAll(toClose.Select(i => i.CloseAsync(_logger))).ConfigureAwait(false);
+        Task[] abandoned;
         lock (_sync)
         {
             _retiring.Clear();
+            abandoned = [.. _abandonedLaunches];
+        }
+
+        try
+        {
+            // Launches we stopped waiting for finish within Chromium's own launch timeout; their cleanup closes them.
+            await Task.WhenAll(abandoned).WaitAsync(_options.LaunchTimeout + TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // Bounded: shutdown does not wait forever for a launch that never completes.
         }
 
         _disposeCts.Dispose();
