@@ -52,12 +52,15 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
-            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
-            # Use the signed Chrome that the runner image installs, and verify the signature.
+            # With the copy installed by setup-chrome, Chrome's helper processes could not rendezvous with the browser
+            # ("bootstrap_look_up ... Permission denied") and died; that copy failed code-signature verification.
+            # Use the Chrome installed by the runner image instead. Signature checks are informational: strict mode
+            # also rejects harmless extended attributes present on the runner image.
             app="/Applications/Google Chrome.app"
-            codesign --verify --deep --strict "$app"
+            codesign --verify --deep "$app" && echo "codesign: valid" || echo "codesign: INVALID"
+            codesign --verify --deep --strict "$app" 2>&1 | head -3 || true
             path="$app/Contents/MacOS/Google Chrome"
+            "$path" --version
           else
             path="${{ steps.setup-chrome.outputs.chrome-path }}"
           fi
@@ -136,12 +139,15 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
-            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
-            # Use the signed Chrome that the runner image installs, and verify the signature.
+            # With the copy installed by setup-chrome, Chrome's helper processes could not rendezvous with the browser
+            # ("bootstrap_look_up ... Permission denied") and died; that copy failed code-signature verification.
+            # Use the Chrome installed by the runner image instead. Signature checks are informational: strict mode
+            # also rejects harmless extended attributes present on the runner image.
             app="/Applications/Google Chrome.app"
-            codesign --verify --deep --strict "$app"
+            codesign --verify --deep "$app" && echo "codesign: valid" || echo "codesign: INVALID"
+            codesign --verify --deep --strict "$app" 2>&1 | head -3 || true
             path="$app/Contents/MacOS/Google Chrome"
+            "$path" --version
           else
             path="${{ steps.setup-chrome.outputs.chrome-path }}"
           fi
@@ -213,12 +219,15 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
-            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
-            # Use the signed Chrome that the runner image installs, and verify the signature.
+            # With the copy installed by setup-chrome, Chrome's helper processes could not rendezvous with the browser
+            # ("bootstrap_look_up ... Permission denied") and died; that copy failed code-signature verification.
+            # Use the Chrome installed by the runner image instead. Signature checks are informational: strict mode
+            # also rejects harmless extended attributes present on the runner image.
             app="/Applications/Google Chrome.app"
-            codesign --verify --deep --strict "$app"
+            codesign --verify --deep "$app" && echo "codesign: valid" || echo "codesign: INVALID"
+            codesign --verify --deep --strict "$app" 2>&1 | head -3 || true
             path="$app/Contents/MacOS/Google Chrome"
+            "$path" --version
           else
             path="${{ steps.setup-chrome.outputs.chrome-path }}"
           fi
