@@ -53,28 +53,44 @@ async Task<string> Try(string name, string[] args, bool incognito, bool pipe = f
 }
 
 Console.WriteLine($"Chrome: {exe}");
-Console.WriteLine(await Try("defaults, default context", [], incognito: false));
-Console.WriteLine(await Try("defaults, incognito context", [], incognito: true));
-Console.WriteLine(await Try("library args, default context", library, incognito: false));
-Console.WriteLine(await Try("library args, incognito context", library, incognito: true));
-foreach (var arg in library)
+// Round 2: even Chrome's defaults fail on macOS runners because the renderer dies on creation ("Render process gone").
+// Test the usual causes of immediate renderer death, starting from defaults.
+foreach (var (name, extra) in new (string, string[])[]
 {
-    Console.WriteLine(await Try($"library args without {arg.Split('=')[0]}", library.Where(a => a != arg).ToArray(), incognito: true));
+    ("defaults", []),
+    ("--no-sandbox", ["--no-sandbox"]),
+    ("--disable-gpu", ["--disable-gpu"]),
+    ("--disable-gpu --disable-software-rasterizer", ["--disable-gpu", "--disable-software-rasterizer"]),
+    ("--use-angle=swiftshader", ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]),
+    ("--disable-features=SkiaGraphite,Metal", ["--disable-features=SkiaGraphite,Metal"]),
+    ("--no-sandbox --disable-gpu", ["--no-sandbox", "--disable-gpu"]),
+    ("library args + --no-sandbox", [.. library, "--no-sandbox"]),
+    ("library args + --disable-gpu", [.. library, "--disable-gpu"]),
+})
+{
+    Console.WriteLine(await Try(name, extra, incognito: true));
 }
 
-Console.WriteLine("---- protocol log for: library args, incognito context (filtered) ----");
-using var factory = LoggerFactory.Create(b => b.AddSimpleConsole(o => o.SingleLine = true).SetMinimumLevel(LogLevel.Trace)
-    .AddFilter((category, level) => true));
-var capture = new StringWriter();
-var original = Console.Out;
-Console.SetOut(capture);
-var verdict = await Try("library args, incognito context (logged)", library, incognito: true, logs: factory);
-await Task.Delay(500);
-Console.SetOut(original);
-Console.WriteLine(verdict);
-var captured = capture.ToString().Split('\n');
-Console.WriteLine($"captured {captured.Length} log lines");
-foreach (var line in captured.Where(l => l.Contains("Network.") || l.Contains("loadingFailed") || l.Contains("Target.") || l.Contains("RECV") || l.Contains("detach", StringComparison.OrdinalIgnoreCase)).Take(80))
+// Chrome's own log for the default case, to capture the renderer's crash reason.
+Console.WriteLine("---- Chrome stderr (defaults, --enable-logging=stderr) ----");
+var logDir = Directory.CreateTempSubdirectory("diag-log-").FullName;
+var psi = new ProcessStartInfo(exe, $"--headless --enable-logging=stderr --v=0 --user-data-dir=\"{logDir}\" --dump-dom about:blank")
 {
-    Console.WriteLine(line.Length > 600 ? line[..600] : line);
+    RedirectStandardError = true,
+    RedirectStandardOutput = true,
+};
+using (var chrome = Process.Start(psi)!)
+{
+    var stderr = chrome.StandardError.ReadToEndAsync();
+    if (!chrome.WaitForExit(60000))
+    {
+        chrome.Kill(true);
+    }
+
+    foreach (var line in (await stderr).Split('\n').Where(l => l.Contains("ERROR") || l.Contains("FATAL") || l.Contains("crash", StringComparison.OrdinalIgnoreCase) || l.Contains("sandbox", StringComparison.OrdinalIgnoreCase) || l.Contains("renderer", StringComparison.OrdinalIgnoreCase)).Take(60))
+    {
+        Console.WriteLine(line.Length > 400 ? line[..400] : line);
+    }
+
+    Console.WriteLine($"dump-dom exit code: {(chrome.HasExited ? chrome.ExitCode : -1)}");
 }

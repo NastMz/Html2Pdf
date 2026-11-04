@@ -126,7 +126,12 @@ jobs:
         shell: bash
         env:
           NAST_HTML2PDF_CHROMIUM_PATH: ${{ steps.chrome.outputs.chrome-path }}
-        run: dotnet run --project tools/MacDiag -c Release
+        run: |
+          sw_vers; uname -m
+          app="$(dirname "$(dirname "$(dirname "$NAST_HTML2PDF_CHROMIUM_PATH")")")"
+          echo "quarantine attributes:"; xattr -lr "$app" 2>/dev/null | grep -i quarantine | head -5 || true
+          codesign --verify --deep --strict "$app" && echo "codesign ok" || echo "codesign verification failed"
+          dotnet run --project tools/MacDiag -c Release
 
       - name: Verify the packed package in independent consumer apps
         shell: bash
