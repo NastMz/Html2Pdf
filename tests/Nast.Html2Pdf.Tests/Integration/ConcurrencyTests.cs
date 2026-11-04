@@ -134,8 +134,9 @@ public sealed class ConcurrencyTests : IDisposable
         {
             if (jobs[index].Expected == PdfConversionError.ReadinessNotMet && error == PdfConversionError.Timeout)
             {
-                // Its 3 s deadline can legitimately expire while it waits behind other jobs; the error says so.
-                Assert.Contains("queue stage", text);
+                // Its 3 s deadline can legitimately expire before readiness is reached (queued behind other jobs or while
+                // the browser context starts under load). A deadline during readiness must be ReadinessNotMet instead.
+                Assert.Matches("elapsed during the (queue|preparation|browser start|document loading) stage", text);
                 continue;
             }
 

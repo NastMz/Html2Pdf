@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Configure test environment
+        shell: bash
+        run: |
+          echo "NAST_HTML2PDF_CHROMIUM_PATH=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+          "${{ steps.chrome.outputs.chrome-path }}" --version || true
+          # Host names used by the DNS-resolution security tests.
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            hosts=/c/Windows/System32/drivers/etc/hosts
+            printf '\n127.0.0.1 loopback.html2pdf.test\n10.255.255.1 private.html2pdf.test\n' >> "$hosts"
+          else
+            printf '127.0.0.1 loopback.html2pdf.test\n10.255.255.1 private.html2pdf.test\n' | sudo tee -a /etc/hosts
+          fi
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            # Ubuntu 24.04 restricts unprivileged user namespaces; Chromium's sandbox needs them. Tests run as a normal
+            # user with the sandbox enabled, which is the supported production configuration.
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          fi
+
+      - name: Build
+        run: dotnet build Nast.Html2Pdf.sln -c Release
+
+      - name: Test
+        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release --no-build --filter "Category!=Soak" --logger trx --results-directory TestResults
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults/**/*.trx
+
+  package:
+    name: Package verification (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Verify the packed package in independent consumer apps
+        shell: bash
+        run: |
+          echo "NAST_HTML2PDF_CHROMIUM_PATH=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+          export NAST_HTML2PDF_CHROMIUM_PATH="${{ steps.chrome.outputs.chrome-path }}"
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+            # Offline run inside a network namespace (requires unprivileged user namespaces).
+            eng/verify-package.sh --offline required
+          else
+            eng/verify-package.sh --offline skip
+          fi
+
+      - name: Record package checksum
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          cd artifacts/packages
+          sha256sum *.nupkg *.snupkg > SHA256SUMS
+          git rev-parse HEAD > SOURCE_REVISION
+          cat SHA256SUMS SOURCE_REVISION
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: nuget-package
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+            artifacts/packages/SHA256SUMS
+            artifacts/packages/SOURCE_REVISION
+
+  performance:
+    name: Performance envelope and soak
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Configure
+        run: |
+          echo "NAST_HTML2PDF_CHROMIUM_PATH=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+          printf '127.0.0.1 loopback.html2pdf.test\n10.255.255.1 private.html2pdf.test\n' | sudo tee -a /etc/hosts
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          nproc; free -m
+
+      - name: Benchmarks with release thresholds
+        run: dotnet run -c Release --project tools/Nast.Html2Pdf.Benchmarks -- --thresholds eng/perf-thresholds.json --report artifacts/perf.json
+
+      - name: Soak (sustained mixed workload)
+        env:
+          HTML2PDF_SOAK_ITERATIONS: "700"
+          HTML2PDF_SOAK_REPORT: ${{ github.workspace }}/artifacts/soak.json
+        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release -f net8.0 --filter "Category=Soak" --logger "console;verbosity=detailed"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports
+          path: artifacts/*.json
+
+  dependencies:
+    name: Dependency vulnerability gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Fail on high or critical vulnerabilities (including transitive)
+        run: |
+          dotnet restore src/Nast.Html2Pdf/Nast.Html2Pdf.csproj
+          dotnet list src/Nast.Html2Pdf/Nast.Html2Pdf.csproj package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -Eiq '\b(High|Critical)\b' vulnerable.txt; then
+            echo "::error::High or critical vulnerabilities in the dependency graph"
+            exit 1
+          fi

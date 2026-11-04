@@ -27,7 +27,10 @@ dotnet pack "$root/src/Nast.Html2Pdf/Nast.Html2Pdf.csproj" -c Release -o "$feed"
 
 package="$feed/Nast.Html2Pdf.$version.nupkg"
 echo "==> Inspecting $package"
-contents="$(unzip -Z1 "$package")"
+python_bin="$(command -v python3 || command -v python)"
+list_zip() { "$python_bin" -c 'import sys, zipfile; print("\n".join(zipfile.ZipFile(sys.argv[1]).namelist()))' "$1" | tr -d '\r'; }
+read_zip() { "$python_bin" -c 'import sys, zipfile; sys.stdout.write(zipfile.ZipFile(sys.argv[1]).read(sys.argv[2]).decode())' "$1" "$2" | tr -d '\r'; }
+contents="$(list_zip "$package")"
 for required in "lib/net8.0/Nast.Html2Pdf.dll" "lib/net8.0/Nast.Html2Pdf.xml" "README.md" "LICENSE" "Nast.Html2Pdf.nuspec"; do
   grep -qx "$required" <<<"$contents" || { echo "missing from package: $required" >&2; exit 1; }
 done
@@ -36,7 +39,7 @@ unexpected="$(grep -Ev '^(lib/net8\.0/Nast\.Html2Pdf\.(dll|xml)|README\.md|LICEN
 if [[ -n "$unexpected" ]]; then
   echo "unexpected files in package:" >&2; echo "$unexpected" >&2; exit 1
 fi
-nuspec="$(unzip -p "$package" Nast.Html2Pdf.nuspec)"
+nuspec="$(read_zip "$package" Nast.Html2Pdf.nuspec)"
 grep -q "<version>$version</version>" <<<"$nuspec" || { echo "nuspec version mismatch" >&2; exit 1; }
 grep -q 'repository type="git" url="https://github.com/NastMz/Html2Pdf' <<<"$nuspec" || { echo "nuspec repository metadata missing" >&2; exit 1; }
 commit="$(git -C "$root" rev-parse HEAD 2>/dev/null || true)"
@@ -57,7 +60,7 @@ for tfm in $frameworks; do
   echo "==> Running consumer ($tfm)"
   dotnet "$out/PackageConsumer.dll"
 
-  if [[ "$offline" != "skip" ]]; then
+  if [[ "$offline" != "skip" && "$(uname -s)" == "Linux" ]]; then
     if command -v unshare >/dev/null && unshare -rn true 2>/dev/null || { [[ $EUID -eq 0 ]] && unshare -n true 2>/dev/null; }; then
       echo "==> Running consumer ($tfm) with no network access (network namespace with loopback only)"
       flags="-rn"; [[ $EUID -eq 0 ]] && flags="-n"
@@ -69,6 +72,8 @@ for tfm in $frameworks; do
     else
       echo "    (offline run skipped: network namespaces unavailable on this platform)"
     fi
+  elif [[ "$offline" == "required" ]]; then
+    echo "offline verification requires Linux network namespaces" >&2; exit 1
   fi
 done
 echo "==> Package verification succeeded for $version"
