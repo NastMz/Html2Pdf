@@ -176,6 +176,7 @@ group or container avoid orphans entirely.
 |---|---|
 | `RendererUnavailable: No Chromium executable was found` | Install Chrome/Chromium or configure the path |
 | `RendererUnavailable: … sandbox could not be initialized` | Enable unprivileged user namespaces or see the sandbox options above |
+| macOS: conversions time out while the browser starts; Chrome logs `bootstrap_look_up … MachPortRendezvousServer … Permission denied` | The Chrome app bundle's code signature is broken (for example it was copied or renamed after installation), so its helper processes cannot start. Use a normally installed, signed Chrome (`codesign --verify --deep --strict "/Applications/Google Chrome.app"`) |
 | `AccessDenied: A required resource was denied by policy: https://cdn…` | Add the host to `Network.AllowedHosts`, embed the resource locally, or use `ResourceFailurePolicy.BestEffort` |
 | `AccessDenied: … resolves to an address that is not a permitted destination` | An allowed host resolves to a private address; add its range to `AllowedPrivateNetworks` if intended |
 | `ResourceUnavailable: … (file not found)` | Relative paths resolve against the document's directory; root-relative paths against its root |

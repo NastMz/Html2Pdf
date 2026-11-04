@@ -38,13 +38,30 @@ jobs:
             10.0.x
 
       - name: Install Chrome
-        id: chrome
+        id: setup-chrome
+        if: runner.os != 'macOS'
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
           # Runner images already include Chrome's system libraries; installing them runs apt-get, which
           # couples CI to the availability of third-party package mirrors.
           install-dependencies: false
+
+      - name: Select Chrome
+        id: chrome
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
+            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
+            # Use the signed Chrome that the runner image installs, and verify the signature.
+            app="/Applications/Google Chrome.app"
+            codesign --verify --deep --strict "$app"
+            path="$app/Contents/MacOS/Google Chrome"
+          else
+            path="${{ steps.setup-chrome.outputs.chrome-path }}"
+          fi
+          echo "chrome-path=$path" >> "$GITHUB_OUTPUT"
 
       - name: Configure test environment
         shell: bash
@@ -105,7 +122,8 @@ jobs:
             10.0.x
 
       - name: Install Chrome
-        id: chrome
+        id: setup-chrome
+        if: runner.os != 'macOS'
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
@@ -113,25 +131,26 @@ jobs:
           # couples CI to the availability of third-party package mirrors.
           install-dependencies: false
 
+      - name: Select Chrome
+        id: chrome
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
+            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
+            # Use the signed Chrome that the runner image installs, and verify the signature.
+            app="/Applications/Google Chrome.app"
+            codesign --verify --deep --strict "$app"
+            path="$app/Contents/MacOS/Google Chrome"
+          else
+            path="${{ steps.setup-chrome.outputs.chrome-path }}"
+          fi
+          echo "chrome-path=$path" >> "$GITHUB_OUTPUT"
+
       - name: Warm up Chrome (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: timeout 180 "${{ steps.chrome.outputs.chrome-path }}" --headless --no-first-run --user-data-dir="$RUNNER_TEMP/chrome-warmup" --dump-dom about:blank || true
-
-      # TEMPORARY: diagnoses a macOS-only stall while creating pages; removed once understood.
-      - name: Diagnose page creation (macOS)
-        if: runner.os == 'macOS'
-        continue-on-error: true
-        timeout-minutes: 20
-        shell: bash
-        env:
-          NAST_HTML2PDF_CHROMIUM_PATH: ${{ steps.chrome.outputs.chrome-path }}
-        run: |
-          sw_vers; uname -m
-          app="$(dirname "$(dirname "$(dirname "$NAST_HTML2PDF_CHROMIUM_PATH")")")"
-          echo "quarantine attributes:"; xattr -lr "$app" 2>/dev/null | grep -i quarantine | head -5 || true
-          codesign --verify --deep --strict "$app" && echo "codesign ok" || echo "codesign verification failed"
-          dotnet run --project tools/MacDiag -c Release
 
       - name: Verify the packed package in independent consumer apps
         shell: bash
@@ -180,13 +199,30 @@ jobs:
             10.0.x
 
       - name: Install Chrome
-        id: chrome
+        id: setup-chrome
+        if: runner.os != 'macOS'
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
           # Runner images already include Chrome's system libraries; installing them runs apt-get, which
           # couples CI to the availability of third-party package mirrors.
           install-dependencies: false
+
+      - name: Select Chrome
+        id: chrome
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            # setup-chrome copies the app out of its disk image and breaks its code signature; Chrome's helper
+            # processes then cannot rendezvous with the browser ("bootstrap_look_up ... Permission denied") and die.
+            # Use the signed Chrome that the runner image installs, and verify the signature.
+            app="/Applications/Google Chrome.app"
+            codesign --verify --deep --strict "$app"
+            path="$app/Contents/MacOS/Google Chrome"
+          else
+            path="${{ steps.setup-chrome.outputs.chrome-path }}"
+          fi
+          echo "chrome-path=$path" >> "$GITHUB_OUTPUT"
 
       - name: Configure
         run: |
