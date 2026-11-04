@@ -50,14 +50,25 @@ fi
 echo "    package files: $(wc -l <<<"$contents"), source revision: ${commit:-unknown}"
 echo "    dependencies:"; grep -o '<dependency id="[^"]*" version="[^"]*"' <<<"$nuspec" | sed 's/<dependency /      /'
 
-# Isolated package cache so the consumer can only resolve the package that was just packed.
+# Isolated package cache so the consumer can only resolve the package that was just packed. Sources are given in a
+# config file rather than as arguments, because Git Bash on Windows rewrites URL-like arguments as paths.
 export NUGET_PACKAGES="$artifacts/consumer/nuget"
+cat > "$feed/nuget.config" <<'CONFIG'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="verified-package" value="." />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+</configuration>
+CONFIG
 consumer_src="$root/tests/PackageConsumer"
 for tfm in $frameworks; do
   out="$artifacts/consumer/$tfm"
   echo "==> Building consumer for $tfm against the packed package"
   dotnet build "$consumer_src/PackageConsumer.csproj" -c Release -f "$tfm" -o "$out" -p:Html2PdfVersion="$version" \
-    --source "$feed" --source https://api.nuget.org/v3/index.json --nologo -v quiet
+    -p:RestoreConfigFile="$feed/nuget.config" --nologo -v quiet
   echo "==> Running consumer ($tfm)"
   dotnet "$out/PackageConsumer.dll"
 
