@@ -42,7 +42,9 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
-          install-dependencies: true
+          # Runner images already include Chrome's system libraries; installing them runs apt-get, which
+          # couples CI to the availability of third-party package mirrors.
+          install-dependencies: false
 
       - name: Configure test environment
         shell: bash
@@ -107,7 +109,9 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
-          install-dependencies: true
+          # Runner images already include Chrome's system libraries; installing them runs apt-get, which
+          # couples CI to the availability of third-party package mirrors.
+          install-dependencies: false
 
       - name: Warm up Chrome (Windows)
         if: runner.os == 'Windows'
@@ -175,7 +179,9 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
-          install-dependencies: true
+          # Runner images already include Chrome's system libraries; installing them runs apt-get, which
+          # couples CI to the availability of third-party package mirrors.
+          install-dependencies: false
 
       - name: Configure
         run: |
