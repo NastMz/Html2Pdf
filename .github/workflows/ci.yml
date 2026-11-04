@@ -114,6 +114,16 @@ jobs:
         shell: bash
         run: timeout 180 "${{ steps.chrome.outputs.chrome-path }}" --headless --no-first-run --user-data-dir="$RUNNER_TEMP/chrome-warmup" --dump-dom about:blank || true
 
+      # TEMPORARY: diagnoses a macOS-only stall while creating pages; removed once understood.
+      - name: Diagnose page creation (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        env:
+          NAST_HTML2PDF_CHROMIUM_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: dotnet run --project tools/MacDiag -c Release
+
       - name: Verify the packed package in independent consumer apps
         shell: bash
         run: |
