@@ -28,7 +28,11 @@ internal sealed class PdfInspector : IDisposable
 
     public Page Page(int number) => _document.GetPage(number);
 
-    public string Text(int page) => string.Join(" ", Page(page).GetWords().Select(w => w.Text));
+    /// <summary>
+    /// Text of a page. Compatibility-normalized (NFKC) so that typographic ligatures some system fonts use, such as
+    /// "ﬁ" for "fi" with macOS fonts, compare equal to the characters they represent.
+    /// </summary>
+    public string Text(int page) => string.Join(" ", Page(page).GetWords().Select(w => w.Text)).Normalize(System.Text.NormalizationForm.FormKC);
 
     public string AllText => string.Join("\n", Enumerable.Range(1, PageCount).Select(Text));
 
