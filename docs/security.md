@@ -134,9 +134,10 @@ failures with logging enabled at `Debug`.
   but **without the sandbox a renderer exploit runs with the privileges of your process and can bypass every policy in
   this document**. Only disable it inside an environment that provides equivalent isolation (a dedicated, unprivileged,
   network-restricted container).
-- **DevTools channel.** On Linux and macOS the library talks to Chromium over a private pipe; no TCP port is opened. On
-  Windows PuppeteerSharp uses a DevTools WebSocket bound to `127.0.0.1` on a random port, which other processes on the same
-  machine could reach; run conversions under a dedicated account or machine when local users are untrusted.
+- **DevTools channel.** On Linux the library talks to Chromium over a private pipe; no TCP port is opened. On Windows
+  and macOS it uses a DevTools WebSocket bound to `127.0.0.1` on a random port (PuppeteerSharp's pipe transport is not
+  reliable on macOS), which other processes on the same machine could reach; run conversions under a dedicated account
+  or machine when local users are untrusted.
 - **Browser currency.** Rendering untrusted content safely depends on a patched Chromium. Keep it updated (see
   [operations](operations.md#keeping-chromium-current)); the library refuses versions older than 120 but cannot know
   whether a newer one is fully patched.

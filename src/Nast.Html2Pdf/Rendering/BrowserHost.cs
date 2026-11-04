@@ -245,8 +245,10 @@ internal sealed partial class BrowserHost : IAsyncDisposable
         {
             ExecutablePath = executable,
             Headless = true,
-            // Pipe transport avoids exposing a DevTools TCP port. PuppeteerSharp supports it on Unix-like systems only.
-            Pipe = !OperatingSystem.IsWindows(),
+            // Pipe transport avoids exposing a DevTools TCP port. It is used where it is verified: on macOS,
+            // PuppeteerSharp's pipe transport stalled while processing protocol messages in CI, so macOS and Windows use
+            // the default WebSocket transport bound to 127.0.0.1.
+            Pipe = OperatingSystem.IsLinux(),
             UserDataDir = profile,
             Args = LaunchArguments(_options.DisableSandbox),
             Timeout = (int)_options.LaunchTimeout.TotalMilliseconds,
