@@ -1,0 +1,12 @@
+{
+  "description": "Release gates enforced by tools/Nast.Html2Pdf.Benchmarks at concurrency 4 on a 4-vCPU Linux runner. Reference measurements (4 vCPU, 16 GB container, Chromium 153, .NET 8) are recorded in docs/verification.md; limits leave headroom for slower shared CI hardware and catch regressions of roughly 3x or more.",
+  "thresholds": {
+    "cold_start_ms_median": { "max": 3000 },
+    "warm_invoice_ms_p50": { "max": 750 },
+    "warm_invoice_ms_p95": { "max": 1200 },
+    "warm_report_ms_p50": { "max": 1500 },
+    "throughput_docs_per_s": { "min": 2.0 },
+    "loaded_service_ms_p95": { "max": 3500 },
+    "peak_rss_mb": { "max": 3000 }
+  }
+}

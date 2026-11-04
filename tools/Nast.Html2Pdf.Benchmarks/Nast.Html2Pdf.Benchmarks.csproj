@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1303;CA1305;CA1307;CA1849;CA2007;CA5394;CA1515;CA1852;CA1869</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nast.Html2Pdf\Nast.Html2Pdf.csproj" />
+  </ItemGroup>
+
+</Project>

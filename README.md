@@ -1,307 +1,181 @@
 # Nast.Html2Pdf
 
-`Nast.Html2Pdf` is a secure-by-default HTML-to-PDF library that targets `net8.0` and is intended for **.NET 8+** consuming applications. It renders RazorLight templates to HTML and uses PuppeteerSharp/Chromium for PDF generation.
+Convert HTML, Liquid templates, local documents and explicitly authorized URLs to PDF from .NET, using headless Chromium.
+Conversion is treated as a potentially hostile operation: network access and document scripts are **off by default**, every
+request a document makes is mediated by an explicit policy, conversions are isolated from each other, and capacity,
+deadlines, cancellation, retries and file output are bounded and predictable.
 
-## Runtime Support
+- **Inputs:** HTML text, trusted Liquid templates with untrusted data, template files, local HTML files, HTTP(S) URLs.
+- **Output:** searchable text, Unicode, embedded fonts, images, links, tables, print CSS, page order, optional bookmarks.
+- **Layout:** A4 portrait by default; standard and custom paper sizes, orientation, margins, scale, backgrounds, page
+  ranges; headers and footers with page numbers and totals in reserved space.
+- **Operations:** dependency injection or explicit lifetime, stable error categories, timings and warnings, health
+  snapshots, metrics and traces, graceful shutdown.
 
-- Package target: `net8.0`
-- Supported consumer runtimes: **.NET 8+**
-- Platforms: Windows, Linux, macOS
-- Browser engine: Chromium through PuppeteerSharp
+Version 2 is a redesign. Coming from 1.x? Read the [migration guide](https://github.com/NastMz/Html2Pdf/blob/main/docs/migration-v2.md).
 
-## Installation
+## Requirements
+
+| | Supported and verified |
+|---|---|
+| .NET | Applications targeting .NET 8 or later (package targets `net8.0`; tested on .NET 8 and .NET 10) |
+| Operating systems | Linux x64, Windows x64, macOS arm64 (full test suite and package verification on each in CI; see [verification](https://github.com/NastMz/Html2Pdf/blob/main/docs/verification.md)) |
+| Browser | Google Chrome, Chromium or chrome-headless-shell **120 or later**, installed separately |
+
+**The library never downloads a browser.** Provide one through `Html2PdfOptions.Browser.ExecutablePath`, the
+`NAST_HTML2PDF_CHROMIUM_PATH` environment variable, or a standard installation location. A missing or unsupported
+browser fails with `PdfConversionError.RendererUnavailable`; call `WarmUpAsync()` at startup to detect it early.
+Once Chromium is installed, local documents convert without any Internet access. See
+[operations](https://github.com/NastMz/Html2Pdf/blob/main/docs/operations.md) for container images and provisioning.
+
+## Install
 
 ```bash
 dotnet add package Nast.Html2Pdf
 ```
 
-```xml
-<PackageReference Include="Nast.Html2Pdf" Version="1.0.1" />
-```
-
-## Secure Defaults
-
-The library starts from a conservative Chromium baseline.
-
-- `AllowInsecureCertificates = false`
-- `DisableSandbox = false`
-- no permissive `--disable-web-security` default
-- invalid template, HTML, file path, URL, and PDF option inputs fail before expensive browser work
-
-Only opt into weaker settings when your environment truly requires them.
-
-## Supported Entry Points
-
-Primary service API via `IHtml2PdfService`:
-
-- `GeneratePdfAsync(template, model, pdfOptions, htmlOptions)` for Razor templates plus model data
-- `GeneratePdfFromFileAsync(templatePath, model, pdfOptions, htmlOptions)` for template files
-- `GeneratePdfFromHtmlAsync(html, pdfOptions)` for already-rendered HTML
-- `GeneratePdfFromUrlAsync(url, pdfOptions)` for reachable `http` or `https` URLs
-
-Additional convenience entry points:
-
-- `Html2PdfFactory.Create(...)` and `Html2PdfFactory.CreateDefault()` for non-DI scenarios
-- `Html2PdfServiceExtensions` helpers to write PDFs directly to files or streams
-
-## DI Usage
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Nast.Html2Pdf.Abstractions;
-using Nast.Html2Pdf.Extensions;
-
-var services = new ServiceCollection();
-services.AddLogging();
-services.AddHtml2Pdf(options =>
-{
-    options.MinInstances = 1;
-    options.MaxInstances = 3;
-    options.AcquireTimeoutSeconds = 30;
-});
-
-using var provider = services.BuildServiceProvider();
-var html2Pdf = provider.GetRequiredService<IHtml2PdfService>();
-```
-
-`AddHtml2Pdf()` registers:
-
-- `IBrowserPool`
-- `IHtmlGenerator`
-- `IPdfConverter`
-- `IHtml2PdfService`
-- `Html2PdfDiagnostics`
-
-For advanced registration control, `AddHtml2PdfWithLifetime(...)` lets you override service lifetimes.
-
-## Browser Provisioning
-
-By default, PuppeteerSharp can download Chromium on first use. For locked-down or pre-provisioned environments, configure the browser explicitly.
-
-```csharp
-services.AddHtml2Pdf(options =>
-{
-    options.MinInstances = 1;
-    options.MaxInstances = 5;
-    options.MaxLifetimeMinutes = 60;
-    options.AcquireTimeoutSeconds = 30;
-    options.Headless = true;
-
-    options.SkipBrowserDownload = true;
-    options.ExecutablePath = @"/usr/bin/chromium";
-    options.BrowserCacheDirectory = "/var/cache/nast-html2pdf";
-});
-```
-
-Provisioning guidance:
-
-- Keep `SkipBrowserDownload = false` if you want automatic Chromium provisioning.
-- Set `SkipBrowserDownload = true` only when you manage Chromium yourself.
-- Use `ExecutablePath` when your runtime image already contains Chrome/Chromium.
-- Use `BrowserCacheDirectory` when you want a predictable PuppeteerSharp cache location.
-- `AdditionalArgs` is available for environment-specific Chromium flags.
-
-## Explicit Opt-Ins
-
-These settings are intentionally not enabled unless you request them.
-
-```csharp
-services.AddHtml2Pdf(options =>
-{
-    options.AllowInsecureCertificates = true;
-    options.DisableSandbox = true;
-    options.AdditionalArgs = ["--window-size=1280,720"];
-});
-```
-
-Tradeoffs:
-
-- `AllowInsecureCertificates = true` weakens TLS validation.
-- `DisableSandbox = true` reduces browser isolation and should be reserved for environments that cannot run Chromium with the sandbox enabled.
-
-## Realistic Examples
-
-### Generate from Raw HTML
-
-```csharp
-using Nast.Html2Pdf.Models;
-
-var html = """
-<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <style>
-        body { font-family: Arial, sans-serif; margin: 32px; }
-        h1 { margin-bottom: 8px; }
-        .muted { color: #666; }
-    </style>
-</head>
-<body>
-    <h1>Quarterly Summary</h1>
-    <p class="muted">Generated from raw HTML</p>
-</body>
-</html>
-""";
-
-var pdfOptions = new PdfOptions
-{
-    Format = "A4",
-    PrintBackground = true
-};
-
-var result = await html2Pdf.GeneratePdfFromHtmlAsync(html, pdfOptions);
-
-if (result.Success && result.Data is not null)
-{
-    await File.WriteAllBytesAsync("quarterly-summary.pdf", result.Data);
-}
-```
-
-### Generate from a Razor Template and Model
-
-```csharp
-using Nast.Html2Pdf.Helpers;
-
-var template = """
-<!doctype html>
-<html>
-<body>
-    <h1>Invoice @Model.Number</h1>
-    <p>Customer: @Model.CustomerName</p>
-    <table>
-        <thead>
-            <tr><th>Description</th><th>Total</th></tr>
-        </thead>
-        <tbody>
-        @foreach (var item in Model.Items)
-        {
-            <tr><td>@item.Description</td><td>@item.Total.ToString("C")</td></tr>
-        }
-        </tbody>
-    </table>
-    <p><strong>Grand total: @Model.GrandTotal.ToString("C")</strong></p>
-</body>
-</html>
-""";
-
-var model = new
-{
-    Number = "INV-2026-001",
-    CustomerName = "Ada Lovelace",
-    Items = new[]
-    {
-        new { Description = "Implementation work", Total = 250.00m },
-        new { Description = "Support", Total = 40.00m }
-    },
-    GrandTotal = 290.00m
-};
-
-var result = await html2Pdf.GeneratePdfAsync(
-    template,
-    model,
-    PdfOptionsHelper.Invoice,
-    HtmlOptionsHelper.Invoice);
-```
-
-### Generate from a URL
-
-```csharp
-using Nast.Html2Pdf.Models;
-
-var result = await html2Pdf.GeneratePdfFromUrlAsync(
-    "https://example.com/report",
-    new PdfOptions
-    {
-        Format = "Letter",
-        PrintBackground = true,
-        WaitForImages = true,
-        TimeoutMs = 30000
-    });
-```
-
-### Non-DI Usage
+## Quick start
 
 ```csharp
 using Nast.Html2Pdf;
-using Nast.Html2Pdf.Services;
 
-var html2Pdf = Html2PdfFactory.Create(new BrowserPoolOptions
-{
-    MaxInstances = 2,
-    AcquireTimeoutSeconds = 15
-});
+await using var converter = new Html2PdfConverter(new Html2PdfOptions());
 
-var result = await html2Pdf.GeneratePdfFromHtmlAsync("<html><body><h1>Hello</h1></body></html>");
+PdfDocument pdf = await converter.ConvertAsync(PdfSource.FromHtml("<h1>Hello, PDF</h1>"));
+await File.WriteAllBytesAsync("hello.pdf", pdf.ToArray());
 ```
 
-## PDF and HTML Configuration
-
-Relevant models and helpers:
-
-- `PdfOptions`, `PdfMargins`, `PdfHeaderFooter`
-- `HtmlGenerationOptions`
-- `PdfOptionsHelper` presets like `A4Standard`, `Invoice`, `Report`
-- `HtmlOptionsHelper` presets like `Standard`, `Invoice`, `Report`
-
-Example:
+With dependency injection the container owns the converter and shuts the browser down on disposal:
 
 ```csharp
-using Nast.Html2Pdf.Models;
-
-var pdfOptions = new PdfOptions
+builder.Services.AddHtml2Pdf(options =>
 {
-    Format = "A4",
-    Landscape = false,
-    PrintBackground = true,
-    Margins = new PdfMargins
-    {
-        Top = "2cm",
-        Bottom = "2cm",
-        Left = "1.5cm",
-        Right = "1.5cm"
-    },
-    Header = new PdfHeaderFooter
-    {
-        Template = "<div style='font-size:10px;width:100%;text-align:center;'>Quarterly Summary</div>",
-        Height = "1cm"
-    }
-};
+    options.LocalFiles.AllowedRoots.Add(Path.Combine(builder.Environment.ContentRootPath, "templates"));
+});
 
-var htmlOptions = new HtmlGenerationOptions
+// Inject IHtml2PdfConverter where needed.
+```
+
+Options are bindable, so `builder.Services.Configure<Html2PdfOptions>(builder.Configuration.GetSection("Html2Pdf"))`
+before `AddHtml2Pdf()` also works.
+
+## Inputs
+
+```csharp
+// Markup you produced. Relative resources resolve against an optional authorized directory.
+PdfSource.FromHtml(html, baseDirectory: "/srv/app/assets");
+
+// A trusted Liquid template and untrusted data: model values are HTML-encoded and never executed.
+PdfSource.FromTemplate("<h1>Invoice {{ Number }}</h1><p>{{ Customer.Name }}</p>", invoice);
+
+// A template file and trusted partials ({% render 'name' %}); resources resolve against the file's directory.
+PdfSource.FromTemplateFile("/srv/app/templates/invoice.liquid", invoice,
+    new TemplateSourceOptions { Partials = new Dictionary<string, string> { ["address"] = "<p>{{ Street }}</p>" } });
+
+// A local HTML file under LocalFiles.AllowedRoots, with its CSS, images and fonts.
+PdfSource.FromFile("/srv/app/reports/q3/index.html");
+
+// A remote page: requires Network.AllowUrlSources and the host in Network.AllowedHosts.
+PdfSource.FromUrl("https://reports.example.com/q3");
+```
+
+Template syntax, escaping rules, `TrustedHtml`, partials and headers are described in
+[templates](https://github.com/NastMz/Html2Pdf/blob/main/docs/templates.md).
+
+## Layout, headers and footers
+
+```csharp
+var options = new PdfConversionOptions
 {
-    BasePath = AppContext.BaseDirectory,
-    InlineStyles = true,
-    IncludeViewport = true,
-    AdditionalCss = "body { color: #222; }"
+    PaperSize = PaperSize.Letter,                  // or PaperSize.Custom("100mm", "150mm")
+    Orientation = PageOrientation.Landscape,
+    Margins = new PageMargins(top: "25mm", right: "15mm", bottom: "20mm", left: "15mm"),
+    Header = new PdfHeaderFooter("<div style=\"font-size:9pt\">{{ Company }}</div>", height: "10mm"),
+    Footer = new PdfHeaderFooter("<div style=\"text-align:right\">Page {{ pdf.page_number }} of {{ pdf.total_pages }}</div>", "8mm"),
+    HeaderFooterModel = new { Company = "Contoso" },
 };
 ```
 
-## Testing and CI
+- The job's paper size, orientation and margins are authoritative (`LayoutPrecedence.Job`, the default) and override a
+  document's CSS `@page` size and margins. Use `LayoutPrecedence.Document` to let the document decide instead.
+- Header and footer bands sit directly above and below the body inside the margin. A band taller than its margin, content
+  taller than its band, external resources in a band, or scripts in a band fail the conversion rather than overlapping,
+  clipping or printing placeholders.
+- Contradictory settings (margins larger than the page, scale outside 0.1–2, invalid page ranges) fail with
+  `PdfConversionError.InvalidRequest`.
 
-- Keep tests tightly scoped when touching pool behavior or documentation assertions.
-- Hosted Linux CI may require disabling the Chromium sandbox for the test process only.
-- This repository uses `HTML2PDF_TEST_DISABLE_SANDBOX=true` in GitHub Actions test runs so browser-based tests can execute on hosted runners.
-- That CI opt-in does not change the library default: production code still keeps the sandbox enabled unless `DisableSandbox` is explicitly set.
+## Results and errors
 
-Examples:
+Every call returns a successful result or throws. There is no partially successful state to check.
 
-```bash
-dotnet test Tests/Nast.Html2Pdf.Tests.csproj --filter "FullyQualifiedName~BrowserPoolTests"
+```csharp
+try
+{
+    PdfFileResult result = await converter.ConvertToFileAsync(source, "/data/out/invoice.pdf", overwrite: false, options, cancellationToken);
+    logger.LogInformation("Wrote {Bytes} bytes in {Ms} ms (operation {Id}, {Warnings} warnings)",
+        result.ByteCount, result.Timings.Total.TotalMilliseconds, result.OperationId, result.Warnings.Count);
+}
+catch (PdfConversionException ex) when (ex.Error == PdfConversionError.CapacityExceeded)
+{
+    // Back off and retry later (ex.IsTransient is true).
+}
+catch (PdfConversionException ex)
+{
+    // ex.Error: InvalidRequest, AccessDenied, ResourceUnavailable, TemplateError, CapacityExceeded, Timeout,
+    // ReadinessNotMet, RenderingFailed, OutputFailed, RendererUnavailable or ShuttingDown.
+    // ex.Message is safe to log: no document content, model data, query strings or absolute host paths.
+}
+// Cancellation through your token surfaces as OperationCanceledException.
 ```
 
-```bash
-dotnet test Tests/Nast.Html2Pdf.Tests.csproj --filter "FullyQualifiedName~ProductionHardeningReleaseTests"
+- `ConvertAsync` returns the PDF in memory, `ConvertToStreamAsync` writes it to a stream, and `ConvertToFileAsync`
+  commits it atomically: a temporary file is written, flushed and moved into place. An existing file is replaced only
+  with `overwrite: true`, and is left intact when anything fails. Cancellation is observed until the commit point.
+- Required sub-resources (images, styles, fonts, frames) that are missing or denied fail the conversion. Set
+  `ResourceFailures = ResourceFailurePolicy.BestEffort` to continue and receive a `ConversionWarning` per resource instead.
+- `Timeout` (default 60 s) covers queueing, preparation, rendering, retries and output. `Readiness.WaitForSelector`,
+  `WaitForExpression` and `NetworkIdleTime` add explicit readiness conditions, reported as `ReadinessNotMet` if unmet.
+
+## Security defaults
+
+| Capability | Default | Enable with |
+|---|---|---|
+| Remote resources | Off | `Network.AllowedHosts` (exact hosts or `*.domain`) |
+| URL sources | Off | `Network.AllowUrlSources` plus an allowed host |
+| Plain HTTP | Off | `Network.AllowHttp` |
+| Private/loopback/link-local/metadata addresses | Always refused | `Network.AllowedPrivateNetworks` (CIDR), e.g. for intranet hosts |
+| Local files | Off | `LocalFiles.AllowedRoots` |
+| Document scripts | Off | `AllowScripts` |
+| Chromium sandbox | On | `Browser.DisableSandbox` (only where the environment provides equivalent isolation) |
+
+Chromium has no direct network access: every request is answered by the library, which checks the policy, resolves DNS
+itself and connects only to validated addresses (so redirects and DNS rebinding are re-checked on every hop). No cookies,
+credentials or proxies of the host application are used, and each conversion runs in a fresh browser context. Details,
+guarantees and their limits are in [security](https://github.com/NastMz/Html2Pdf/blob/main/docs/security.md).
+
+## Capacity, health and shutdown
+
+```csharp
+options.Capacity.MaxConcurrentConversions = 4;   // rendering slots
+options.Capacity.MaxQueueLength = 32;            // waiting requests; more fail fast with CapacityExceeded
+options.Capacity.QueueTimeout = TimeSpan.FromSeconds(30);
+options.ShutdownTimeout = TimeSpan.FromSeconds(30);
+
+Html2PdfHealth health = converter.GetHealth();   // Status, active/queued counts, browser version, last failure
+await converter.ShutdownAsync();                 // stop intake, settle work, release Chromium and temp files
 ```
 
-## Documentation Links
+Metrics (`Nast.Html2Pdf` meter), traces (`Nast.Html2Pdf` activity source), log events and a health-check example are
+documented in [operations](https://github.com/NastMz/Html2Pdf/blob/main/docs/operations.md).
 
-- [Quick Start](QUICK_START.md)
-- [Comprehensive Guide](COMPREHENSIVE_GUIDE.md)
-- [Changelog](CHANGELOG.md)
-- [NuGet package](https://www.nuget.org/packages/Nast.Html2Pdf)
-- [GitHub issues](https://github.com/NastMz/Html2Pdf/issues)
+## Scope and limitations
+
+This is a library, not a conversion service. It does not claim PDF/A, PDF/UA, digital signatures or encryption, and it
+does not promise pixel-identical output across Chromium versions or operating systems (fonts differ between systems;
+embed web fonts for consistent typography). With scripts enabled, WebSockets, workers, service workers and popups are
+not supported. The [verification report](https://github.com/NastMz/Html2Pdf/blob/main/docs/verification.md) lists what
+has been verified, how, and under which conditions.
 
 ## License
 
-[MIT](LICENSE)
+MIT

@@ -1,0 +1,3 @@
+DejaVuSans.ttf is from the DejaVu fonts project (https://dejavu-fonts.github.io/),
+redistributed under the Bitstream Vera / DejaVu font license (free to use, copy and redistribute).
+It is used only by tests that verify web-font embedding.

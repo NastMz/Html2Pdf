@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Nast.Html2Pdf</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>false</IsAotCompatible>
+
+    <PackageId>Nast.Html2Pdf</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Kevin Martinez</Authors>
+    <Company>Nast</Company>
+    <Product>Nast.Html2Pdf</Product>
+    <Description>Convert HTML, Liquid templates, local documents and authorized URLs to PDF with headless Chromium. Network access and document scripts are disabled by default, every request is mediated by an explicit policy, conversions are isolated from each other, and capacity, deadlines, cancellation and output commitment are bounded and predictable.</Description>
+    <PackageTags>html;pdf;html-to-pdf;chromium;liquid;template;invoice;report</PackageTags>
+    <PackageProjectUrl>https://github.com/NastMz/Html2Pdf</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/NastMz/Html2Pdf</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2025-2026 Kevin Martinez</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See https://github.com/NastMz/Html2Pdf/blob/main/CHANGELOG.md and docs/migration-v2.md.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PuppeteerSharp" Version="25.15.0" />
+    <PackageReference Include="Fluid.Core" Version="2.41.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nast.Html2Pdf.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

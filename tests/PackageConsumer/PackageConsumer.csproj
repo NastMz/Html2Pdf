@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    An independent application that consumes the packed Nast.Html2Pdf NuGet package, exactly as an end user would.
+    It is built by eng/verify-package.sh against a local feed that contains only the freshly packed package.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <Html2PdfVersion Condition="'$(Html2PdfVersion)' == ''">2.0.0</Html2PdfVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nast.Html2Pdf" Version="[$(Html2PdfVersion)]" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+  </ItemGroup>
+
+</Project>
