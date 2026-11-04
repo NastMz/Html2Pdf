@@ -22,7 +22,8 @@ A ground-up redesign. See [docs/migration-v2.md](docs/migration-v2.md) for the A
 - Bounded admission (slots, queue length, queue timeout), whole-operation deadlines, infrastructure-only retries,
   browser recycling, graceful shutdown, health snapshots, metrics, traces and structured logs.
 - Package consumer verification (including offline), soak and performance gates, CI on Linux, Windows and macOS, and a
-  release workflow that publishes only the verified artifact.
+  release workflow that publishes only the verified artifact, using nuget.org Trusted Publishing (no long-lived
+  API keys; see docs/releasing.md).
 
 ### Removed
 
