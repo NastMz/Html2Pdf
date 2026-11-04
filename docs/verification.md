@@ -101,6 +101,26 @@ impossible threshold was confirmed to fail the gate.
 `dotnet list package --vulnerable --include-transitive` reports no known vulnerabilities for the library's dependency
 graph (PuppeteerSharp 25.15.0, Fluid.Core 2.41.1, Microsoft.Extensions.* 8.0.x). CI fails on any high or critical finding.
 
+### Platform matrix (GitHub Actions)
+
+Revision `b35300e`, CI run on GitHub-hosted runners; each cell covers .NET 8 and .NET 10:
+
+| Platform | Runner image | Browser | Test suite | Package verification |
+|---|---|---|---|---|
+| Linux x64 | ubuntu-latest (24.04) | Chrome stable via setup-chrome, sandbox **enabled**, unprivileged user | 222/222 | Pass, including the offline run |
+| Windows x64 | windows-latest (Server 2025) | Chrome 156 (preinstalled) | 222/222 | Pass |
+| macOS arm64 | macos-latest (macOS 26) | Google Chrome 157 (preinstalled, signed) | 222/222 | Pass |
+
+The soak test, the performance gates and the dependency vulnerability gate ran on Linux in the same run and passed.
+
+**Open issue (Windows):** `IsolationTests.Concurrent_conversions_are_isolated_and_receive_only_their_own_output`
+(12 concurrent script-enabled conversions using cookies, `localStorage` and IndexedDB) failed intermittently on Windows
+runners in two of the three runs before `b35300e`: once with a `NullReferenceException` during rendering and once with
+the deadline elapsing while printing. It passed in the `b35300e` run. It has not reproduced on Linux in 600 conversions
+of the same pattern, over either the pipe or the WebSocket transport. Unexpected failures now report their originating
+code location, so the next occurrence identifies its source. No isolation violation was observed: the failures were
+conversion errors, never leaked state or mixed output.
+
 ## Defects found and fixed during verification
 
 The adversarial and soak tests found real defects in the new implementation before release, all fixed and covered by
@@ -117,15 +137,23 @@ regression tests:
 - A rare DevTools race during page creation (~0.3% of conversions under load) failed conversions; it is now retried in
   a fresh context without discarding the healthy browser.
 - The header/footer measurement page treated the browser's favicon request as a required resource.
+- On macOS arm64, `fcntl(F_GETPATH)` was called through a non-variadic signature; Apple's arm64 ABI passes variadic
+  arguments on the stack, so the call wrote through a garbage pointer and crashed the process (found by the macOS CI
+  run). It now uses the arm64 variadic convention and is covered by a cross-platform test.
+- The launch timeout did not apply when the launcher blocked synchronously; launches now run on the thread pool, so
+  `Browser.LaunchTimeout` always bounds startup.
+- PuppeteerSharp's pipe transport stalled on macOS; the pipe is used on Linux only.
+
+CI environment problems found and handled (not library defects): a Chrome copy installed by `setup-chrome` on macOS
+whose broken code signature made every Chrome helper process die at startup; cold Chrome starts on Windows runners
+exceeding the 30 s default launch timeout when two test hosts launched browsers at once; and an outage of a Microsoft
+package mirror that broke `apt-get update`.
 
 ## Not verified here, and residual limitations
 
-- **Windows and macOS** were not available in the reference environment. The CI workflow runs the complete test suite
-  and package verification on `windows-latest` and `macos-latest` with the current stable Chrome; consult the CI run for
-  this revision for those results. Platform-specific code paths (handle-path verification via `GetFinalPathNameByHandle`
-  and `F_GETPATH`, Windows path rules) are exercised only there. The offline consumer run uses Linux network namespaces
-  and is Linux-only.
-- **ARM64** has not been tested.
+- **Windows and macOS** were not available in the reference environment; they are verified by the CI matrix above.
+  The offline consumer run uses Linux network namespaces and runs on Linux only.
+- **Linux and Windows on ARM64** have not been tested (macOS is verified on arm64).
 - **Visual fidelity** is verified geometrically, not pixel-for-pixel; text metrics differ between font installations.
 - **Chromium versions** other than the reference version are exercised only through CI's current stable channel.
 - **Not provided:** PDF/A, PDF/UA conformance, digital signatures, encryption, WebSockets/workers/popups for script-driven

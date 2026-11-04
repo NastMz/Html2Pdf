@@ -19,7 +19,7 @@ Version 2 is a redesign. Coming from 1.x? Read the [migration guide](https://git
 | | Supported and verified |
 |---|---|
 | .NET | Applications targeting .NET 8 or later (package targets `net8.0`; tested on .NET 8 and .NET 10) |
-| Operating systems | Linux x64, Windows x64, macOS (see [verification](https://github.com/NastMz/Html2Pdf/blob/main/docs/verification.md) for what each platform's CI covers) |
+| Operating systems | Linux x64, Windows x64, macOS arm64 (full test suite and package verification on each in CI; see [verification](https://github.com/NastMz/Html2Pdf/blob/main/docs/verification.md)) |
 | Browser | Google Chrome, Chromium or chrome-headless-shell **120 or later**, installed separately |
 
 **The library never downloads a browser.** Provide one through `Html2PdfOptions.Browser.ExecutablePath`, the
