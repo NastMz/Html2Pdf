@@ -259,7 +259,9 @@ internal sealed partial class BrowserHost : IAsyncDisposable
         Task<IBrowser>? launch = null;
         try
         {
-            launch = Puppeteer.LaunchAsync(launchOptions);
+            // Run on the thread pool: the launcher can block synchronously (process start, transport setup), and the
+            // launch timeout must apply even then. An abandoned launch is closed when it eventually completes.
+            launch = Task.Run(() => Puppeteer.LaunchAsync(launchOptions), CancellationToken.None);
             browser = await launch.WaitAsync(_options.LaunchTimeout, cancellationToken).ConfigureAwait(false);
             var version = await browser.GetVersionAsync().WaitAsync(_options.LaunchTimeout, cancellationToken).ConfigureAwait(false);
             var major = ParseMajorVersion(version);

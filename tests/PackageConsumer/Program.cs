@@ -82,7 +82,7 @@ void Configure(Html2PdfOptions options)
 
 // 1. Dependency injection.
 var services = new ServiceCollection();
-services.AddLogging(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Warning));
+services.AddLogging(b => b.AddSimpleConsole().SetMinimumLevel(Enum.TryParse<LogLevel>(Environment.GetEnvironmentVariable("HTML2PDF_LOG_LEVEL"), out var level) ? level : LogLevel.Warning));
 services.AddHtml2Pdf(Configure);
 await using (var provider = services.BuildServiceProvider())
 {

@@ -28,8 +28,9 @@ dotnet pack "$root/src/Nast.Html2Pdf/Nast.Html2Pdf.csproj" -c Release -o "$feed"
 package="$feed/Nast.Html2Pdf.$version.nupkg"
 echo "==> Inspecting $package"
 python_bin="$(command -v python3 || command -v python)"
-list_zip() { "$python_bin" -c 'import sys, zipfile; print("\n".join(zipfile.ZipFile(sys.argv[1]).namelist()))' "$1" | tr -d '\r'; }
-read_zip() { "$python_bin" -c 'import sys, zipfile; sys.stdout.write(zipfile.ZipFile(sys.argv[1]).read(sys.argv[2]).decode())' "$1" "$2" | tr -d '\r'; }
+# Write raw UTF-8 bytes: on Windows the console encoding is not UTF-8, and the nuspec starts with a byte order mark.
+list_zip() { "$python_bin" -c 'import sys, zipfile; sys.stdout.buffer.write("\n".join(zipfile.ZipFile(sys.argv[1]).namelist()).encode("utf-8"))' "$1" | tr -d '\r'; }
+read_zip() { "$python_bin" -c 'import sys, zipfile; sys.stdout.buffer.write(zipfile.ZipFile(sys.argv[1]).read(sys.argv[2]).decode("utf-8-sig").encode("utf-8"))' "$1" "$2" | tr -d '\r'; }
 contents="$(list_zip "$package")"
 for required in "lib/net8.0/Nast.Html2Pdf.dll" "lib/net8.0/Nast.Html2Pdf.xml" "README.md" "LICENSE" "Nast.Html2Pdf.nuspec"; do
   grep -qx "$required" <<<"$contents" || { echo "missing from package: $required" >&2; exit 1; }

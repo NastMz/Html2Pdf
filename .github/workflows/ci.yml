@@ -42,7 +42,6 @@ jobs:
         shell: bash
         run: |
           echo "NAST_HTML2PDF_CHROMIUM_PATH=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
-          "${{ steps.chrome.outputs.chrome-path }}" --version || true
           # Host names used by the DNS-resolution security tests.
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             hosts=/c/Windows/System32/drivers/etc/hosts
@@ -101,7 +100,8 @@ jobs:
             # Offline run inside a network namespace (requires unprivileged user namespaces).
             eng/verify-package.sh --offline required
           else
-            eng/verify-package.sh --offline skip
+            # Trace logging so a failure on these runners shows where the browser stalled.
+            HTML2PDF_LOG_LEVEL=Trace eng/verify-package.sh --offline skip
           fi
 
       - name: Record package checksum

@@ -128,7 +128,17 @@ public sealed class SecurityTests : IDisposable
     [Fact]
     public async Task Allowed_hosts_are_still_refused_when_they_resolve_to_non_public_addresses()
     {
-        Assert.True(Dns.GetHostAddresses("private.html2pdf.test").Contains(IPAddress.Parse("10.255.255.1")),
+        IPAddress[] resolved;
+        try
+        {
+            resolved = Dns.GetHostAddresses("private.html2pdf.test");
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            resolved = [];
+        }
+
+        Assert.True(resolved.Contains(IPAddress.Parse("10.255.255.1")),
             "Test precondition: /etc/hosts must map private.html2pdf.test to 10.255.255.1 and loopback.html2pdf.test to 127.0.0.1 (see CI setup).");
 
         await using var converter = Create(o =>

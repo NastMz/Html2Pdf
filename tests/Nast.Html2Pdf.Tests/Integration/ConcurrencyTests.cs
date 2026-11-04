@@ -140,7 +140,7 @@ public sealed class ConcurrencyTests : IDisposable
                 continue;
             }
 
-            Assert.Equal(jobs[index].Expected, error);
+            Assert.True(jobs[index].Expected == error, $"job {index} (kind {index % 6}): expected {jobs[index].Expected?.ToString() ?? "success"}, got {error?.ToString() ?? "success"}: {text}");
             if (error is null)
             {
                 Assert.Contains(index % 6 == 0 ? $"ok-{index}" : $"job-{index}", text);
