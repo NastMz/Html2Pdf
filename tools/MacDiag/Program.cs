@@ -79,18 +79,26 @@ var psi = new ProcessStartInfo(exe, $"--headless --enable-logging=stderr --v=0 -
     RedirectStandardError = true,
     RedirectStandardOutput = true,
 };
-using (var chrome = Process.Start(psi)!)
+var stderrLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+using (var chrome = new Process { StartInfo = psi })
 {
-    var stderr = chrome.StandardError.ReadToEndAsync();
-    if (!chrome.WaitForExit(60000))
+    // Collect output through events with a hard time limit: Chrome's helper processes can keep the pipe open, so
+    // reading the stream to the end could block forever.
+    chrome.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderrLines.Enqueue(e.Data); };
+    chrome.OutputDataReceived += (_, _) => { };
+    chrome.Start();
+    chrome.BeginErrorReadLine();
+    chrome.BeginOutputReadLine();
+    var exited = chrome.WaitForExit(60000);
+    if (!exited)
     {
-        chrome.Kill(true);
+        try { chrome.Kill(entireProcessTree: true); } catch { }
     }
 
-    foreach (var line in (await stderr).Split('\n').Where(l => l.Contains("ERROR") || l.Contains("FATAL") || l.Contains("crash", StringComparison.OrdinalIgnoreCase) || l.Contains("sandbox", StringComparison.OrdinalIgnoreCase) || l.Contains("renderer", StringComparison.OrdinalIgnoreCase)).Take(60))
+    foreach (var line in stderrLines.Where(l => l.Contains("ERROR") || l.Contains("FATAL") || l.Contains("crash", StringComparison.OrdinalIgnoreCase) || l.Contains("sandbox", StringComparison.OrdinalIgnoreCase) || l.Contains("renderer", StringComparison.OrdinalIgnoreCase)).Take(60))
     {
         Console.WriteLine(line.Length > 400 ? line[..400] : line);
     }
 
-    Console.WriteLine($"dump-dom exit code: {(chrome.HasExited ? chrome.ExitCode : -1)}");
+    Console.WriteLine($"dump-dom exited: {exited}, exit code: {(exited ? chrome.ExitCode : -1)}, stderr lines: {stderrLines.Count}");
 }
