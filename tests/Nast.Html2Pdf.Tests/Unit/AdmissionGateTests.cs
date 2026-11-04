@@ -19,12 +19,13 @@ public sealed class AdmissionGateTests
                 var now = Interlocked.Increment(ref active);
                 InterlockedMax(ref peak, now);
                 await Task.Delay(Random.Shared.Next(0, 3));
+
+                // Stop counting this task as a holder before its slot can be handed to another task.
+                Interlocked.Decrement(ref active);
                 if (i % 7 == 0)
                 {
-                    lease.Dispose(); // double release must be harmless
+                    lease.Dispose(); // an explicit release followed by the using-release must release only once
                 }
-
-                Interlocked.Decrement(ref active);
             }
             catch (PdfConversionException)
             {

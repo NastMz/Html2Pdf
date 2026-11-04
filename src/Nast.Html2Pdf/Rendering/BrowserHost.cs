@@ -614,14 +614,16 @@ internal sealed class BrowserInstance(IBrowser browser, string profileDirectory,
 
     private static async Task DeleteProfileAsync(string directory)
     {
-        for (var attempt = 0; attempt < 10; attempt++)
+        // Bounded (about 20 s in total): on Windows, files of an exited Chromium process can stay locked briefly.
+        // Anything still left is removed by the next converter that starts with the same temporary directory.
+        for (var attempt = 0; attempt < 20; attempt++)
         {
             if (DeleteProfile(directory))
             {
                 return;
             }
 
-            await Task.Delay(100 * (attempt + 1)).ConfigureAwait(false);
+            await Task.Delay(Math.Min(2000, 100 * (attempt + 1))).ConfigureAwait(false);
         }
     }
 

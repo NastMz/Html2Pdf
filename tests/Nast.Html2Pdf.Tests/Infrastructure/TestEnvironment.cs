@@ -21,6 +21,9 @@ internal static class TestEnvironment
             {
                 DisableSandbox = DisableSandbox,
                 TemporaryDirectory = TempDirectory.CreateRoot("profiles"),
+                // Cold Chrome starts on loaded CI machines (notably Windows with real-time scanning) can exceed the
+                // 30 s default. Launch-timeout behaviour itself is covered by a dedicated test.
+                LaunchTimeout = TimeSpan.FromSeconds(90),
             },
             DefaultTimeout = TimeSpan.FromSeconds(45),
         };

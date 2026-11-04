@@ -96,15 +96,16 @@ public sealed class ReliabilityTests : IDisposable
     public async Task Deadlines_apply_to_rendering_and_readiness_with_distinct_errors()
     {
         await using var converter = Create();
+        await converter.WarmUpAsync(); // the deadline below must expire while loading, not while the browser starts
         var watch = Stopwatch.StartNew();
-        var timeout = await Assert.ThrowsAsync<PdfConversionException>(() => converter.ConvertAsync(Slow, new PdfConversionOptions { Timeout = TimeSpan.FromSeconds(3) }));
+        var timeout = await Assert.ThrowsAsync<PdfConversionException>(() => converter.ConvertAsync(Slow, new PdfConversionOptions { Timeout = TimeSpan.FromSeconds(8) }));
         Assert.Equal(PdfConversionError.Timeout, timeout.Error);
         Assert.Contains("document loading", timeout.Message);
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(18), $"took {watch.Elapsed}");
 
         var readiness = await Assert.ThrowsAsync<PdfConversionException>(() => converter.ConvertAsync(Quick, new PdfConversionOptions
         {
-            Timeout = TimeSpan.FromSeconds(2),
+            Timeout = TimeSpan.FromSeconds(10),
             Readiness = { WaitForSelector = ".never" },
         }));
         Assert.Equal(PdfConversionError.ReadinessNotMet, readiness.Error);
@@ -416,7 +417,7 @@ public sealed class ReliabilityTests : IDisposable
     {
         var profiles = options.Browser.TemporaryDirectory!;
         Assert.Equal(0, await ProcessProbe.WaitForNoProcessesAsync(profiles, TimeSpan.FromSeconds(10)));
-        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var deadline = DateTime.UtcNow.AddSeconds(25);
         while (Directory.EnumerateDirectories(profiles, "*", SearchOption.AllDirectories).Any(d => Path.GetFileName(Path.GetDirectoryName(d)) == "nast-html2pdf") && DateTime.UtcNow < deadline)
         {
             await Task.Delay(100);

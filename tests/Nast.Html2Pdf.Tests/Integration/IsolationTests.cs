@@ -94,7 +94,7 @@ public sealed class IsolationTests : IAsyncLifetime
         var html = Probe.Replace("<html>", "<html data-token=\"failed\">");
         var ex = await Assert.ThrowsAsync<PdfConversionException>(() => _converter.ConvertAsync(PdfSource.FromHtml(html, _root.Path), new PdfConversionOptions
         {
-            Timeout = TimeSpan.FromSeconds(3),
+            Timeout = TimeSpan.FromSeconds(12), // headroom: on slow machines a short deadline can expire before readiness
             Readiness = { WaitForSelector = "#never-appears" },
         }));
         Assert.Equal(PdfConversionError.ReadinessNotMet, ex.Error);

@@ -72,6 +72,7 @@ _ = Task.Run(async () =>
 void Configure(Html2PdfOptions options)
 {
     options.Browser.DisableSandbox = disableSandbox;
+    options.Browser.LaunchTimeout = TimeSpan.FromSeconds(90); // cold starts on CI runners, see docs/operations.md
     options.LocalFiles.AllowedRoots.Add(work);
     options.Network.AllowUrlSources = true;
     options.Network.AllowHttp = true;
@@ -140,6 +141,7 @@ await using (var provider = services.BuildServiceProvider())
 // 2. Explicit creation and disposal, with secure defaults (no network, no files, no scripts).
 var defaults = new Html2PdfOptions();
 defaults.Browser.DisableSandbox = disableSandbox;
+defaults.Browser.LaunchTimeout = TimeSpan.FromSeconds(90);
 await using (var standalone = new Html2PdfConverter(defaults))
 {
     await standalone.WarmUpAsync();

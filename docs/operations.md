@@ -11,7 +11,9 @@ The package contains no browser and never downloads one. The converter uses, in 
    `/usr/bin/microsoft-edge` on Linux; Chrome, Chromium and Edge under Program Files / LocalAppData on Windows;
    Chrome, Chromium and Edge in `/Applications` on macOS.
 
-Chromium 120 or later is required; older versions fail with `RendererUnavailable`. The effective version is reported by
+Chromium 120 or later is required; older versions fail with `RendererUnavailable`. The first launch of a freshly
+installed browser can be much slower than later ones (on Windows CI runners, real-time scanning pushed cold starts past
+the 30 s default `Browser.LaunchTimeout`); raise the timeout or warm the browser up during deployment where that applies. The effective version is reported by
 `GetHealth().BrowserVersion` and logged when the browser starts. Call `await converter.WarmUpAsync()` during application
 startup so that a missing or broken browser fails deployment rather than the first request.
 
