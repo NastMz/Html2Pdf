@@ -89,6 +89,23 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public async Task Unexpected_failures_report_their_code_location_without_data()
+    {
+        static async Task Fail(string secret)
+        {
+            await Task.Yield();
+            throw new InvalidOperationException(secret);
+        }
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Fail("SECRET-DETAIL"));
+        var origin = Html2PdfConverter.Origin(exception);
+        Assert.StartsWith(" in Nast.Html2Pdf.Tests.Unit.ConfigurationTests.", origin);
+        Assert.DoesNotContain("SECRET", origin);
+        Assert.DoesNotContain("/", origin);
+        Assert.Equal(string.Empty, Html2PdfConverter.Origin(new InvalidOperationException("never thrown")));
+    }
+
+    [Fact]
     public void Options_are_copied_at_construction()
     {
         var options = TestEnvironment.Options();

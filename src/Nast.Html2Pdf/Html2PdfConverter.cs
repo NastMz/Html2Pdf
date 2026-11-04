@@ -517,8 +517,35 @@ public sealed class Html2PdfConverter : IHtml2PdfConverter, IAsyncDisposable, ID
             case ArgumentException or FormatException:
                 return new PdfConversionException(PdfConversionError.InvalidRequest, "The request is invalid: " + ex.Message);
             default:
-                return new PdfConversionException(PdfConversionError.RenderingFailed, $"The renderer failed ({ex.GetType().Name}).");
+                return new PdfConversionException(PdfConversionError.RenderingFailed, $"The renderer failed ({ex.GetType().Name}{Origin(ex)}).");
         }
+    }
+
+    /// <summary>
+    /// The code location an unexpected exception was thrown from (type and method only: no file paths, values or
+    /// exception messages), so that unexpected failures can be diagnosed from the public error without leaking data.
+    /// </summary>
+    internal static string Origin(Exception ex)
+    {
+        var method = new StackTrace(ex, fNeedFileInfo: false).GetFrames()
+            .Select(f => f.GetMethod())
+            .FirstOrDefault(m => m?.DeclaringType is not null);
+        if (method is null)
+        {
+            return string.Empty;
+        }
+
+        var type = method.DeclaringType!;
+        var name = method.Name;
+        // Async and iterator state machines are nested types named "<Method>d__N"; report the original method.
+        if (type.Name.StartsWith('<') && type.DeclaringType is not null)
+        {
+            var end = type.Name.IndexOf('>', StringComparison.Ordinal);
+            name = end > 1 ? type.Name[1..end] : name;
+            type = type.DeclaringType;
+        }
+
+        return $" in {type.FullName}.{name}";
     }
 
     private static string StageName(RenderStage stage) => stage switch
