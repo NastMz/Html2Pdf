@@ -50,4 +50,7 @@ internal static partial class Log
 
     [LoggerMessage(14, LogLevel.Warning, "Converter shutdown timeout elapsed; cancelling {Active} active conversion(s)")]
     public static partial void ShutdownCancelling(ILogger logger, int active);
+
+    [LoggerMessage(15, LogLevel.Information, "Browser generation {Generation}: terminated {Count} detached browser process(es) that outlived the browser")]
+    public static partial void OrphanedProcessesTerminated(ILogger logger, int generation, int count);
 }

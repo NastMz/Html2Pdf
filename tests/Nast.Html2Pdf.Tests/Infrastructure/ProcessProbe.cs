@@ -1,64 +1,32 @@
+using Nast.Html2Pdf.Rendering;
+
 namespace Nast.Html2Pdf.Tests.Infrastructure;
 
-/// <summary>Counts browser processes started with a given profile directory (Linux only, via /proc).</summary>
+/// <summary>
+/// Observes browser processes started with a given profile directory. Process counting covers Linux and macOS
+/// (the same enumeration the library uses to reap detached processes); resident memory is Linux only (/proc).
+/// </summary>
 internal static class ProcessProbe
 {
-    public static bool Supported => OperatingSystem.IsLinux();
+    public static bool Supported => ProfileProcesses.Supported;
 
-    public static int CountProcessesUsing(string marker)
-    {
-        if (!Supported)
-        {
-            return 0;
-        }
+    public static bool ResidentMemorySupported => OperatingSystem.IsLinux();
 
-        var count = 0;
-        foreach (var directory in Directory.EnumerateDirectories("/proc"))
-        {
-            if (!int.TryParse(Path.GetFileName(directory), out _))
-            {
-                continue;
-            }
-
-            try
-            {
-                var commandLine = File.ReadAllText(Path.Combine(directory, "cmdline"));
-                if (commandLine.Contains(marker, StringComparison.Ordinal))
-                {
-                    count++;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-            }
-        }
-
-        return count;
-    }
+    public static int CountProcessesUsing(string marker) => Supported ? ProfileProcesses.Find(marker).Count : 0;
 
     public static long ResidentBytesUsing(string marker)
     {
-        if (!Supported)
+        if (!ResidentMemorySupported)
         {
             return 0;
         }
 
         long total = 0;
-        foreach (var directory in Directory.EnumerateDirectories("/proc"))
+        foreach (var pid in ProfileProcesses.Find(marker))
         {
-            if (!int.TryParse(Path.GetFileName(directory), out _))
-            {
-                continue;
-            }
-
             try
             {
-                if (!File.ReadAllText(Path.Combine(directory, "cmdline")).Contains(marker, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var rss = File.ReadLines(Path.Combine(directory, "status")).FirstOrDefault(l => l.StartsWith("VmRSS:", StringComparison.Ordinal));
+                var rss = File.ReadLines($"/proc/{pid}/status").FirstOrDefault(l => l.StartsWith("VmRSS:", StringComparison.Ordinal));
                 if (rss is not null)
                 {
                     total += long.Parse(rss.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1]) * 1024;
