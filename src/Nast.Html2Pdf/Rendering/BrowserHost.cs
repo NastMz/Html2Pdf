@@ -301,6 +301,7 @@ internal sealed partial class BrowserHost : IAsyncDisposable
             }
             else
             {
+                ProfileProcesses.KillAll(profile);
                 BrowserInstance.DeleteProfile(profile);
             }
 
@@ -607,6 +608,13 @@ internal sealed class BrowserInstance(IBrowser browser, string profileDirectory,
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Disposal of an already closed connection may throw; the process is already gone.
+        }
+
+        // Processes that detached from the browser's tree (Chrome's crash reporter on macOS) survive the kill above.
+        var orphans = ProfileProcesses.KillAll(profileDirectory);
+        if (orphans > 0)
+        {
+            Log.OrphanedProcessesTerminated(logger, Generation, orphans);
         }
 
         await DeleteProfileAsync(profileDirectory).ConfigureAwait(false);

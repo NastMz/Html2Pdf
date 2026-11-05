@@ -18,7 +18,8 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # attach the verified artifacts to the GitHub release
+      id-token: write  # OIDC token exchanged for a short-lived nuget.org API key (Trusted Publishing)
     environment: nuget
     steps:
       - uses: actions/checkout@v4
@@ -42,12 +43,24 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # Trusted Publishing: no long-lived API key is stored. nuget.org validates GitHub's OIDC token against the
+      # trusted publishing policy (owner NastMz, repository Html2Pdf, workflow release.yml, environment nuget) and
+      # returns an API key valid for one hour, so it is requested immediately before the push.
+      - name: Check Trusted Publishing configuration
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        run: test -n "$NUGET_USER" || { echo "::error::Set the NUGET_USER secret (nuget.org profile name, not the e-mail address) in the nuget environment"; exit 1; }
+
+      - name: Obtain a short-lived nuget.org API key
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish to NuGet
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          test -n "$NUGET_API_KEY" || { echo "::error::NUGET_API_KEY secret is not configured"; exit 1; }
-          dotnet nuget push "release/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "release/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
 
       - name: Attach verified artifacts to the GitHub release
         env:

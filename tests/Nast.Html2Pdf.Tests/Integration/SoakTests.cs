@@ -139,7 +139,7 @@ public sealed class SoakTests(ITestOutputHelper output) : IDisposable
         // and at most the current plus retiring browser profiles exist at any time.
         Assert.All(samples, s => Assert.InRange(s.BrowserProcesses, 0, 40));
         Assert.All(samples, s => Assert.InRange(s.ProfileDirectories, 0, 2));
-        if (ProcessProbe.Supported && samples.Count >= 6)
+        if (ProcessProbe.ResidentMemorySupported && samples.Count >= 6)
         {
             var early = samples.Skip(1).Take(samples.Count / 3).Average(s => s.BrowserResidentMb);
             var late = samples.Skip(samples.Count * 2 / 3).Average(s => s.BrowserResidentMb);

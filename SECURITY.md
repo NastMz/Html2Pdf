@@ -14,6 +14,13 @@ Please report suspected vulnerabilities privately through GitHub's **Report a vu
 vulnerabilities. You can expect an acknowledgement within five working days and a fix or mitigation plan for confirmed
 high-severity issues within 30 days.
 
+## Release integrity
+
+Packages are published only by the release workflow, from the exact artifact that passed the full CI pipeline, after
+checking that the tag, the package version and the source revision agree. Publishing uses nuget.org Trusted Publishing
+(OIDC): no long-lived NuGet API key exists, and each publish uses a key that expires after one hour. See
+[docs/releasing.md](docs/releasing.md).
+
 ## Update expectations
 
 - **Library and .NET dependencies.** Every CI run fails if the dependency graph (including transitive packages) has a

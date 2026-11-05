@@ -96,12 +96,25 @@ jobs:
       # One framework at a time: running both test hosts at once doubles the number of concurrent browsers.
       # A test that runs longer than 5 minutes (the slowest normally takes under a minute) is reported by name and
       # aborted, instead of holding the job until its timeout.
+      # --blame-hang-timeout only covers a running test; the step limit also bounds the host shutting down afterwards.
       - name: Test (net8.0)
-        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release --no-build -f net8.0 --filter "Category!=Soak" --logger trx --results-directory TestResults --blame-hang-timeout 5m --blame-hang-dump-type none
+        timeout-minutes: 12
+        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release --no-build -f net8.0 --filter "Category!=Soak" --logger trx --logger "console;verbosity=normal" --results-directory TestResults --blame-hang-timeout 5m --blame-hang-dump-type none
 
       - name: Test (net10.0)
         if: success() || failure()
-        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release --no-build -f net10.0 --filter "Category!=Soak" --logger trx --results-directory TestResults --blame-hang-timeout 5m --blame-hang-dump-type none
+        timeout-minutes: 12
+        run: dotnet test tests/Nast.Html2Pdf.Tests/Nast.Html2Pdf.Tests.csproj -c Release --no-build -f net10.0 --filter "Category!=Soak" --logger trx --logger "console;verbosity=normal" --results-directory TestResults --blame-hang-timeout 5m --blame-hang-dump-type none
+
+      - name: List surviving processes
+        if: failure()
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -match 'chrome|testhost|dotnet' } | Format-Table -AutoSize ProcessId,ParentProcessId,Name,CommandLine | Out-String -Width 400"
+          else
+            ps -axww -o pid,ppid,etime,command | grep -iE "chrome|testhost|dotnet" | grep -v grep || true
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
